@@ -2,10 +2,8 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
-	"html/template"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -23,12 +21,26 @@ func BindHandlers(mux *http.ServeMux) {
 			http.NotFound(w, req)
 			return
 		}
-		BlogList(w,req)
+		BlogList(w, req)
 	})
 
 	mux.HandleFunc("/bloglist", BlogList)
 	mux.HandleFunc("/blogedit", BlogEdit)
 	mux.HandleFunc("/blogsave", BlogSave)
+}
+
+type PageModel struct {
+	WebSiteName string
+	PageTitle   string
+	Data        interface{}
+}
+
+func NewPageModel(pageTitle string, data interface{}) PageModel {
+	return PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data}
+}
+
+func GetPageTitle(title string) string {
+	return title + " - " + config.WebsiteName
 }
 
 type BlogListItemModel struct {
@@ -72,25 +84,13 @@ func BlogList(w http.ResponseWriter, req *http.Request) {
 		}
 		blogItems = append(blogItems, BlogListItemModel{Id: id, Title: title, Content: content, InsertTime: insertTime})
 	}
-	tmpl, err := template.ParseFiles("view/layout.html", "view/bloglist.html")
-	if err != nil {
-		panic(err)
-	}
-	err = tmpl.Execute(w, blogItems)
-	if err != nil {
-		fmt.Fprintf(w, err.Error())
-	}
+
+	goweb.RenderPage(w,NewPageModel("GOBLOG", blogItems), "view/layout.html", "view/bloglist.html")
+
 }
 
 func BlogEdit(w http.ResponseWriter, req *http.Request) {
-	tmpl, err := template.ParseFiles("view/layout.html", "view/blogedit.html")
-	if err != nil {
-		panic(err)
-	}
-	err = tmpl.Execute(w, nil)
-	if err != nil {
-		fmt.Fprintf(w, err.Error())
-	}
+	goweb.RenderPage(w, NewPageModel(GetPageTitle("写文章"), nil), "view/layout.html", "view/blogedit.html")
 }
 
 func BlogSave(w http.ResponseWriter, req *http.Request) {
@@ -138,13 +138,6 @@ func Blog(w http.ResponseWriter, req *http.Request) {
 	if err := rows.Scan(&id, &title, &content, &insertTime); err != nil {
 		panic(err)
 	}
-	tmpl, err := template.ParseFiles("view/layout.html", "view/blog.html")
-	if err != nil {
-		panic(err)
-	}
-	err = tmpl.Execute(w, BlogModel{Id: id, Title: title, Content: content, InsertTime: insertTime})
-	if err != nil {
-		fmt.Fprintf(w, err.Error())
-	}
 
+	goweb.RenderPage(w, NewPageModel(GetPageTitle(title), BlogModel{Id: id, Title: title, Content: content, InsertTime: insertTime}), "view/layout.html", "view/blog.html")
 }
