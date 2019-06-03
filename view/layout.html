@@ -25,6 +25,13 @@
     </div>
 </nav>
 {{template "content" .Data}}
+<div id="mask" class="d-none">
+    <div class="d-flex justify-content-center align-items-center">
+        <div class="spinner-border text-light" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+</div>
 <script src="/static/js/jquery-3.4.1.min.js"></script>
 <script src="/static/js/main.js"></script>
 <script src="/static/bootstrap/js/bootstrap.min.js"></script>
