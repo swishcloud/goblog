@@ -1,0 +1,34 @@
+{{define "content"}}
+    <div class="container">
+        <form class="mt-5" action="/blogsave" method="post">
+            <div id="error"></div>
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" class="form-control" name="title" placeholder="请输入标题" required>
+            </div>
+            <div class="form-group">
+                <label >正文</label>
+                <textarea class="form-control" name="content" rows="3" placeholder="正文内容..." required></textarea>
+            </div>
+            <button id="login" type="submit" class="btn btn-primary">发布</button>
+        </form>
+    </div>
+{{end}}
+
+{{define "script"}}
+    <script>
+        new app.ajaxSubmit($("form"), {
+            before: function () {
+                app.closeError($('#error'))
+            },
+            success: function (res) {
+                if (res.error) {
+                    app.showError($('#error'), res.error)
+                } else {
+                    alert(res.data)
+                    window.location.href = "/bloglist"
+                }
+            }
+        })
+    </script>
+{{end}}

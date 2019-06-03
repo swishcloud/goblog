@@ -1,0 +1,5 @@
+{
+  "FileLocation": "/",
+  "Host":"127.0.0.1:1719",
+  "SqlDataSourceName":"allen:fjAlfa.fa131@tcp(192.168.100.2:3306)/goblog"
+}
