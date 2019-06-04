@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+const(
+	PATH_BLOGLIST="/bloglist"
+	PATH_BLOGEDIT="/blogedit"
+	PATH_BLOGSAVE="/blogsave"
+	PATH_LOGIN="/login"
+)
+
 func BindHandlers(group *goweb.RouterGroup) {
 	group.GET("/", func(context *goweb.Context) {
 		if  context.Request.URL.Path != "/" {
@@ -22,9 +29,11 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
 	})
-	group.GET("/bloglist",BlogList)
-	group.GET("/blogedit",BlogEdit)
-	group.GET("/blogsave",BlogSave)
+	group.GET(PATH_BLOGLIST,BlogList)
+	group.GET(PATH_BLOGEDIT,BlogEdit)
+	group.GET(PATH_BLOGSAVE,BlogSave)
+	group.GET(PATH_LOGIN,Login)
+	group.POST(PATH_LOGIN,LoginPost)
 }
 
 type PageModel struct {
@@ -51,8 +60,8 @@ func Authorize(w http.ResponseWriter,req *http.Request)bool{
 	_=cookie
 	return true
 }
-func IsLogin(){
-
+func IsLogin()bool{
+return false
 }
 
 type BlogListItemModel struct {
@@ -102,8 +111,8 @@ func BlogList(context *goweb.Context) {
 }
 
 func BlogEdit(context *goweb.Context) {
-	if !Authorize(context.Writer,context.Request){
-		return
+	if !IsLogin(){
+http.Redirect(context.Writer,context.Request,PATH_LOGIN,302)
 	}
 	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle("写文章"), nil), "view/layout.html", "view/blogedit.html")
 }
@@ -155,4 +164,17 @@ func Blog(context *goweb.Context) {
 	}
 
 	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle(title), BlogModel{Id: id, Title: title, Content: content, InsertTime: insertTime}), "view/layout.html", "view/blog.html")
+}
+
+func  Login(context *goweb.Context)  {
+	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle("登录"), nil), "view/layout.html", "view/login.html")
+}
+func  LoginPost(context *goweb.Context)  {
+	account:=context.Request.PostForm.Get("account")
+	password:=context.Request.PostForm.Get("password")
+	if account=="123" && password=="456"{
+		goweb.HandlerResult{}.Write(context.Writer)
+	}else {
+		goweb.HandlerResult{Error:"账号或密码有误",Data:"test"}.Write(context.Writer)
+	}
 }
