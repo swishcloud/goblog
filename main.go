@@ -4,16 +4,17 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/github-123456/goweb"
 	"net/http"
 )
 
 func main() {
-	mux:=http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
-	BindHandlers(mux)
 	addr:= flag.String("addr", config.Host, "http service address")
 	fmt.Print("listening on:",config.Host)
-	err := http.ListenAndServe(*addr, mux)
+	g:=goweb.New()
+	BindHandlers(&g.RouterGroup)
+
+	err := http.ListenAndServe(*addr, g)
 	if err != nil {
 		panic(err)
 	}
