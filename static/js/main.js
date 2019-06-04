@@ -13,8 +13,9 @@ var app = {
     closeError: function (target) {
         $(target).find("div:first").alert("close")
     },
-    ajaxSubmit:function(form,option){
+    ajaxSubmit:function(form,option,rules){
             $(form).validate({
+                rules:rules,
                 submitHandler:function (form) {
                     var before=option.before
                     if(typeof before=="function")

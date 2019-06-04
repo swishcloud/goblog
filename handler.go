@@ -15,6 +15,7 @@ const(
 	PATH_BLOGEDIT="/blogedit"
 	PATH_BLOGSAVE="/blogsave"
 	PATH_LOGIN="/login"
+	PATH_REGISTER="/register"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
@@ -34,6 +35,8 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.GET(PATH_BLOGSAVE,BlogSave)
 	group.GET(PATH_LOGIN,Login)
 	group.POST(PATH_LOGIN,LoginPost)
+	group.GET(PATH_REGISTER,Register)
+	group.POST(PATH_REGISTER,RegisterPost)
 }
 
 type PageModel struct {
@@ -178,3 +181,8 @@ func  LoginPost(context *goweb.Context)  {
 		goweb.HandlerResult{Error:"账号或密码有误",Data:"test"}.Write(context.Writer)
 	}
 }
+
+func  Register(context *goweb.Context)  {
+	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle("注册"), nil), "view/layout.html", "view/register.html")
+}
+func  RegisterPost(context *goweb.Context)  {}
