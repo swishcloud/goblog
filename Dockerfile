@@ -1,8 +1,8 @@
 FROM golang:1.8
 
-WORKDIR /workspace/go/app
+WORKDIR /go/src/app
 
-COPY . /workspace/go/app
+COPY . /go/src/app
 
 RUN go version
 
