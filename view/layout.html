@@ -11,17 +11,41 @@
 <body>
 <nav class=" navbar navbar-expand-lg navbar-light bg-light mb-3">
     <a class="navbar-brand" href="/bloglist">{{.WebSiteName}}</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
             {{/*<li class="nav-item">*/}}
-                {{/*<a class="nav-link" href="/bloglist">首页</a>*/}}
+            {{/*<a class="nav-link" href="/bloglist">首页</a>*/}}
             {{/*</li>*/}}
         </ul>
-        <a href="/blogedit" target="_blank" ><button class="btn btn-outline-primary mr-2 my-2 my-sm-0" type="submit">写文章</button></a>
+        {{if eq .User.Id 0}}
+            <div>
+                <a href="/login">登录</a>
+            </div>
+        {{else}}
+            <div class="position-relative" id="user-action">
+                <a href="/user/{{.User.Id}}"> {{.User.UserName}}</a>
+                <a href="/blogedit" target="_blank">
+                    <button class="btn btn-outline-primary mr-2 my-2 my-sm-0" type="submit">写文章</button>
+                </a>
+                <div class="position-absolute d-none" style="left:-20px">
+                    <ul class="bg-white ul-list box-one" style="margin-top:10px;width:150px;">
+                        <li>
+                            <form id="logoutForm" method="post" action="/logout?redirectUri={{.Path}}"
+                                  class="was-validated">
+                                <a href="javascript:;;" class="text-dark"
+                                   onclick="document.getElementById('logoutForm').submit()">注销</a>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        {{end}}
+
     </div>
 </nav>
 {{template "content" .Data}}
@@ -32,11 +56,23 @@
         </div>
     </div>
 </div>
+<div class="footer" style="margin:25px 0;text-align: center">
+    <span>耗时:{{.Duration}}ss</span>
+</div>
 <script src="/static/js/jquery-3.4.1.min.js"></script>
 <script src="/static/js/main.js"></script>
 <script src="/static/bootstrap/js/bootstrap.min.js"></script>
 <script src="/static/jquery-validation-1.19.0/dist/jquery.validate.js"></script>
 <script src="/static/js/jquery.form.min.js"></script>
+<script>
+    $("#login").attr("href", '/account/externall?returnurl=' + location.href)
+    $("#user-action").mouseleave(function () {
+        $(this).find("div").addClass("d-none")
+    })
+    $("#user-action").mouseenter(function () {
+        $(this).find("div").removeClass("d-none")
+    })
+</script>
 {{template "script" .}}
 </body>
 </html>

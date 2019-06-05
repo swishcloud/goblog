@@ -9,6 +9,7 @@ type Config struct{
 	Host string
 	SqlDataSourceName string
 	WebsiteName string
+	Key string
 }
 var config Config
 func ReadConfig()Config {
@@ -19,5 +20,5 @@ func ReadConfig()Config {
 	var c  Config
 	dec.Decode(&v)
 	dec.Decode(&c)
-	return Config{FileLocation:v["FileLocation"].(string), Host:v["Host"].(string),SqlDataSourceName:v["SqlDataSourceName"].(string),WebsiteName:v["WebsiteName"].(string)}
+	return Config{FileLocation:v["FileLocation"].(string), Host:v["Host"].(string),SqlDataSourceName:v["SqlDataSourceName"].(string),WebsiteName:v["WebsiteName"].(string),Key:v["Key"].(string)}
 }

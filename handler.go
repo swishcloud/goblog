@@ -1,7 +1,11 @@
 package main
 
 import (
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
+	"github.com/github-123456/gostudy/aesencryption"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
@@ -10,61 +14,78 @@ import (
 	"time"
 )
 
-const(
-	PATH_BLOGLIST="/bloglist"
-	PATH_BLOGEDIT="/blogedit"
-	PATH_BLOGSAVE="/blogsave"
-	PATH_LOGIN="/login"
-	PATH_REGISTER="/register"
+const (
+	PATH_BLOGLIST = "/bloglist"
+	PATH_BLOGEDIT = "/blogedit"
+	PATH_BLOGSAVE = "/blogsave"
+	PATH_LOGIN    = "/login"
+	PATH_REGISTER = "/register"
+	PATH_LOGOUT="/logout"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
 	group.GET("/", func(context *goweb.Context) {
-		if  context.Request.URL.Path != "/" {
+		if context.Request.URL.Path != "/" {
 			http.NotFound(context.Writer, context.Request)
 			return
 		}
 		BlogList(context)
 	})
-	group.RegexMatch(regexp.MustCompile(`^/blog_\d+\.html$`),Blog)
+	group.RegexMatch(regexp.MustCompile(`^/blog_\d+\.html$`), Blog)
 	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
 	})
-	group.GET(PATH_BLOGLIST,BlogList)
-	group.GET(PATH_BLOGEDIT,BlogEdit)
-	group.GET(PATH_BLOGSAVE,BlogSave)
-	group.GET(PATH_LOGIN,Login)
-	group.POST(PATH_LOGIN,LoginPost)
-	group.GET(PATH_REGISTER,Register)
-	group.POST(PATH_REGISTER,RegisterPost)
+	group.GET(PATH_BLOGLIST, BlogList)
+	group.GET(PATH_BLOGEDIT, BlogEdit)
+	group.POST(PATH_BLOGSAVE, BlogSave)
+	group.GET(PATH_LOGIN, Login)
+	group.POST(PATH_LOGIN, LoginPost)
+	group.POST(PATH_LOGOUT, LogoutPost)
+	group.GET(PATH_REGISTER, Register)
+	group.POST(PATH_REGISTER, RegisterPost)
 }
 
 type PageModel struct {
+	User User
+	Path string
 	WebSiteName string
 	PageTitle   string
 	Data        interface{}
+	Duration int
 }
 
-func NewPageModel(pageTitle string, data interface{}) PageModel {
-	return PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data}
+func NewPageModel(pageTitle string, data interface{}) *PageModel {
+	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data}
+}
+
+func (p *PageModel) Prepare(c *goweb.Context) interface{} {
+	p.Path=c.Request.URL.Path
+
+	u,err:=GetLoginUser(c)
+	if err==nil{
+		p.User=u
+	}
+
+	n:=time.Now()
+	p.Duration=int(n.Sub(c.CT)/time.Millisecond)
+
+	return p
 }
 
 func GetPageTitle(title string) string {
 	return title + " - " + config.WebsiteName
 }
 
-const SessionName  ="session"
-func Authorize(w http.ResponseWriter,req *http.Request)bool{
-	cookie,err:=req.Cookie(SessionName)
-	if err!=nil{
+const SessionName = "session"
+
+func Authorize(w http.ResponseWriter, req *http.Request) bool {
+	cookie, err := req.Cookie(SessionName)
+	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return false
 	}
-	_=cookie
+	_ = cookie
 	return true
-}
-func IsLogin()bool{
-return false
 }
 
 type BlogListItemModel struct {
@@ -89,7 +110,7 @@ func BlogList(context *goweb.Context) {
 		key = ""
 	}
 
-	rows, err := db.Query("select id,title,content,insertTime from blog where title like ?", "%"+key+"%")
+	rows, err := db.Query("select id,title,content,insertTime from blog where title like ? order by updateTime desc", "%"+key+"%")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -109,15 +130,15 @@ func BlogList(context *goweb.Context) {
 		blogItems = append(blogItems, BlogListItemModel{Id: id, Title: title, Content: content, InsertTime: insertTime})
 	}
 
-	goweb.RenderPage(context.Writer,NewPageModel("GOBLOG", blogItems), "view/layout.html", "view/bloglist.html")
+	goweb.RenderPage(context, NewPageModel("GOBLOG", blogItems), "view/layout.html", "view/bloglist.html")
 
 }
 
 func BlogEdit(context *goweb.Context) {
-	if !IsLogin(){
-http.Redirect(context.Writer,context.Request,PATH_LOGIN,302)
+	if !IsLogin(context) {
+		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
 	}
-	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle("写文章"), nil), "view/layout.html", "view/blogedit.html")
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), nil), "view/layout.html", "view/blogedit.html")
 }
 
 func BlogSave(context *goweb.Context) {
@@ -153,6 +174,7 @@ func Blog(context *goweb.Context) {
 	if err != nil {
 		panic(err)
 	}
+
 	var (
 		title      string
 		content    string
@@ -166,23 +188,82 @@ func Blog(context *goweb.Context) {
 		panic(err)
 	}
 
-	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle(title), BlogModel{Id: id, Title: title, Content: content, InsertTime: insertTime}), "view/layout.html", "view/blog.html")
+	goweb.RenderPage(context, NewPageModel(GetPageTitle(title), BlogModel{Id: id, Title: title, Content: content, InsertTime: insertTime}), "view/layout.html", "view/blog.html")
 }
 
-func  Login(context *goweb.Context)  {
-	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle("登录"), nil), "view/layout.html", "view/login.html")
+func Login(context *goweb.Context) {
+	goweb.RenderPage(context,NewPageModel(GetPageTitle("登录"), nil), "view/layout.html", "view/login.html")
 }
-func  LoginPost(context *goweb.Context)  {
-	account:=context.Request.PostForm.Get("account")
-	password:=context.Request.PostForm.Get("password")
-	if account=="123" && password=="456"{
-		goweb.HandlerResult{}.Write(context.Writer)
-	}else {
-		goweb.HandlerResult{Error:"账号或密码有误",Data:"test"}.Write(context.Writer)
+
+func LoginPost(context *goweb.Context) {
+	account := context.Request.PostForm.Get("account")
+	password := context.Request.PostForm.Get("password")
+
+	b := md5.Sum([]byte(password))
+	hashedPassword := hex.EncodeToString(b[:])
+
+	var (
+		r_id       int
+		r_password string
+		r_userName string
+	)
+	r := db.QueryRow("select id,userName, password from user where userName=?", account)
+	err := r.Scan(&r_id, &r_userName, &r_password)
+	if err != nil {
+		context.Failed("账号或密码错误")
+		return
+	}
+
+	if hashedPassword != r_password {
+		context.Failed("账号或密码错误")
+		return
+	}
+	jsonB, err := json.Marshal(User{Id: r_id, UserName: r_userName})
+	if err != nil {
+		context.Failed(err.Error())
+		return
+	}
+	userJsonText := string(jsonB)
+
+	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt([]byte(config.Key),userJsonText), Path: "/"}
+	http.SetCookie(context.Writer, &cookie)
+
+	context.Success(nil)
+}
+
+func  LogoutPost(context *goweb.Context)  {
+	redirectUri:=context.Request.URL.Query().Get("redirectUri")
+
+	expire := time.Now().Add(-7 * 24 * time.Hour)
+	cookie := http.Cookie{
+		Name:    SessionName,
+		Value:   "",
+		Expires: expire,
+	}
+	http.SetCookie(context.Writer, &cookie)
+
+	http.Redirect(context.Writer,context.Request,redirectUri,302)
+}
+
+func Register(context *goweb.Context) {
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("注册"), nil), "view/layout.html", "view/register.html")
+}
+func RegisterPost(context *goweb.Context) {
+	account := context.Request.PostForm.Get("account")
+	password := context.Request.PostForm.Get("password")
+	passwordBytes := []byte(password)
+	b := md5.Sum(passwordBytes)
+	hashedPassword := hex.EncodeToString(b[:])
+	r, err := db.Exec(`insert into user (userName,password,insertTime,isDeleted,isBanned)values(
+	?,?,?,?,?
+	)`, account, hashedPassword, time.Now(), 0, 0)
+	if err != nil {
+		goweb.HandlerResult{Error: err.Error()}.Write(context.Writer)
+	} else {
+		id, err := r.LastInsertId()
+		if err != nil {
+			panic(err)
+		}
+		goweb.HandlerResult{Data: id}.Write(context.Writer)
 	}
 }
-
-func  Register(context *goweb.Context)  {
-	goweb.RenderPage(context.Writer, NewPageModel(GetPageTitle("注册"), nil), "view/layout.html", "view/register.html")
-}
-func  RegisterPost(context *goweb.Context)  {}
