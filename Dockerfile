@@ -1,3 +1,7 @@
+RUN git clone https://github.com/udhos/update-golang
+
+RUN sudo update-golang/update-golang.sh
+
 FROM golang:1.8
 
 WORKDIR /workspace/go/app
