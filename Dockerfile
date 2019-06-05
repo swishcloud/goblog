@@ -18,4 +18,4 @@ RUN go get github.com/go-sql-driver/mysql
 
 RUN go install
 
-CMD ["goblog"]
+CMD goblog
