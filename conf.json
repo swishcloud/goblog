@@ -1,6 +1,6 @@
 {
   "FileLocation": "/",
-  "Host":"192.168.100.6:1719",
+  "Host":"0.0.0.0:1719",
   "SqlDataSourceName":"allen:fjAlfa.fa131@tcp(192.168.100.3:3306)/goblog",
   "WebsiteName":"GOBLOG",
   "Key": "Cd8k7\"PXLXs]Sl0B+K/BMt)Y_Ft/9y~c"

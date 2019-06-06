@@ -1,21 +1,3 @@
-FROM golang:1.8
-
-WORKDIR /go/src/app
-
-COPY . /go/src/app
-
-RUN go version
-
-RUN git clone https://github.com/udhos/update-golang
-
-RUN update-golang/update-golang.sh
-
-RUN go get github.com/github-123456/gostudy/aesencryption
-
-RUN go get github.com/github-123456/goweb
-
-RUN go get github.com/go-sql-driver/mysql
-
-RUN go install
-
-CMD goblog
+FROM gcr.io/intricate-dryad-234705/golangimage@sha256:f449987a095cf3db1778e01219b21244545618056930381ae20ac39774f318f2
+RUN go build
+CMD ["goblog"]
