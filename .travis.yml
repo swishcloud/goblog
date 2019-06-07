@@ -4,9 +4,9 @@ go:
 - 1.12.x
 
 script:
-  - go build
-  
- deploy:
+- go build
+
+deploy:
   provider: script
   script: bash scripts/deploy.sh
   on:
