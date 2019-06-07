@@ -20,17 +20,11 @@ const (
 	PATH_BLOGSAVE = "/blogsave"
 	PATH_LOGIN    = "/login"
 	PATH_REGISTER = "/register"
-	PATH_LOGOUT="/logout"
+	PATH_LOGOUT   = "/logout"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
-	group.GET("/", func(context *goweb.Context) {
-		if context.Request.URL.Path != "/" {
-			http.NotFound(context.Writer, context.Request)
-			return
-		}
-		BlogList(context)
-	})
+	group.GET("/", BlogList)
 	group.RegexMatch(regexp.MustCompile(`^/blog_\d+\.html$`), Blog)
 	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
@@ -44,14 +38,13 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.GET(PATH_REGISTER, Register)
 	group.POST(PATH_REGISTER, RegisterPost)
 }
-
 type PageModel struct {
-	User User
-	Path string
+	User        User
+	Path        string
 	WebSiteName string
 	PageTitle   string
 	Data        interface{}
-	Duration int
+	Duration    int
 }
 
 func NewPageModel(pageTitle string, data interface{}) *PageModel {
@@ -59,15 +52,15 @@ func NewPageModel(pageTitle string, data interface{}) *PageModel {
 }
 
 func (p *PageModel) Prepare(c *goweb.Context) interface{} {
-	p.Path=c.Request.URL.Path
+	p.Path = c.Request.URL.Path
 
-	u,err:=GetLoginUser(c)
-	if err==nil{
-		p.User=u
+	u, err := GetLoginUser(c)
+	if err == nil {
+		p.User = u
 	}
 
-	n:=time.Now()
-	p.Duration=int(n.Sub(c.CT)/time.Millisecond)
+	n := time.Now()
+	p.Duration = int(n.Sub(c.CT) / time.Millisecond)
 
 	return p
 }
@@ -192,7 +185,7 @@ func Blog(context *goweb.Context) {
 }
 
 func Login(context *goweb.Context) {
-	goweb.RenderPage(context,NewPageModel(GetPageTitle("登录"), nil), "view/layout.html", "view/login.html")
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("登录"), nil), "view/layout.html", "view/login.html")
 }
 
 func LoginPost(context *goweb.Context) {
@@ -225,14 +218,14 @@ func LoginPost(context *goweb.Context) {
 	}
 	userJsonText := string(jsonB)
 
-	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt([]byte(config.Key),userJsonText), Path: "/"}
+	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt([]byte(config.Key), userJsonText), Path: "/"}
 	http.SetCookie(context.Writer, &cookie)
 
 	context.Success(nil)
 }
 
-func  LogoutPost(context *goweb.Context)  {
-	redirectUri:=context.Request.URL.Query().Get("redirectUri")
+func LogoutPost(context *goweb.Context) {
+	redirectUri := context.Request.URL.Query().Get("redirectUri")
 
 	expire := time.Now().Add(-7 * 24 * time.Hour)
 	cookie := http.Cookie{
@@ -242,7 +235,7 @@ func  LogoutPost(context *goweb.Context)  {
 	}
 	http.SetCookie(context.Writer, &cookie)
 
-	http.Redirect(context.Writer,context.Request,redirectUri,302)
+	http.Redirect(context.Writer, context.Request, redirectUri, 302)
 }
 
 func Register(context *goweb.Context) {
