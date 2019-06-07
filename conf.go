@@ -1,8 +1,8 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
+"encoding/json"
+"os"
 )
 type Config struct{
 	FileLocation string
