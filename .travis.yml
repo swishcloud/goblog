@@ -2,6 +2,7 @@ language: go
 go:
 - 1.12.x
 script:
+- pwd
 - ls
 - go build
 deploy:
