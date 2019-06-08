@@ -12,6 +12,7 @@ type Config struct{
 	WebsiteName string
 	Key string
 	LastUpdateTime time.Time
+	ConcurrenceNum int
 }
 var config Config
 func ReadConfig()Config {
@@ -32,5 +33,6 @@ func ReadConfig()Config {
 		WebsiteName:v["WebsiteName"].(string),
 		Key:v["Key"].(string),
 		LastUpdateTime:tm,
+		ConcurrenceNum:int(v["ConcurrenceNum"].(float64)),
 	}
 }
