@@ -45,10 +45,11 @@ type PageModel struct {
 	PageTitle   string
 	Data        interface{}
 	Duration    int
+	LastUpdateTime time.Time
 }
 
 func NewPageModel(pageTitle string, data interface{}) *PageModel {
-	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data}
+	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data,LastUpdateTime:config.LastUpdateTime}
 }
 
 func (p *PageModel) Prepare(c *goweb.Context) interface{} {

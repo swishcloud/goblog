@@ -1,8 +1,9 @@
 package main
 
 import (
-"encoding/json"
-"os"
+	"encoding/json"
+	"os"
+	"time"
 )
 type Config struct{
 	FileLocation string
@@ -10,6 +11,7 @@ type Config struct{
 	SqlDataSourceName string
 	WebsiteName string
 	Key string
+	LastUpdateTime time.Time
 }
 var config Config
 func ReadConfig()Config {
@@ -20,5 +22,15 @@ func ReadConfig()Config {
 	var c  Config
 	dec.Decode(&v)
 	dec.Decode(&c)
-	return Config{FileLocation:v["FileLocation"].(string), Host:v["Host"].(string),SqlDataSourceName:v["SqlDataSourceName"].(string),WebsiteName:v["WebsiteName"].(string),Key:v["Key"].(string)}
+	info,_:=file.Stat()
+	loc, _ := time.LoadLocation("Local")
+	tm:=info.ModTime().In(loc)
+	return Config{
+		FileLocation:v["FileLocation"].(string),
+		Host:v["Host"].(string),
+		SqlDataSourceName:v["SqlDataSourceName"].(string),
+		WebsiteName:v["WebsiteName"].(string),
+		Key:v["Key"].(string),
+		LastUpdateTime:tm,
+	}
 }
