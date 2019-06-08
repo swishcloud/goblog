@@ -1,1 +1,1 @@
-# goblog  [![Build Status](https://semaphoreci.com/api/v1/github-123456/goblog/branches/release/badge.svg)](https://semaphoreci.com/github-123456/goblog)
+# goblog  [![Build Status](https://travis-ci.org/github-123456/goblog.svg?branch=master)](https://travis-ci.org/github-123456/goblog)
