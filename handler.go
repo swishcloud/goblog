@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
@@ -137,29 +138,32 @@ func BlogList(context *goweb.Context) {
 
 }
 
+type BlogEditModel struct {
+	CategoryList []dbservice.CategoryDto
+}
+
 func BlogEdit(context *goweb.Context) {
 	if !IsLogin(context) {
 		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
 		return
 	}
-	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), nil), "view/layout.html", "view/blogedit.html")
+	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), BlogEditModel{CategoryList: categoryList}), "view/layout.html", "view/blogedit.html")
 }
 
 func BlogSave(context *goweb.Context) {
 	context.Request.ParseForm()
 	title := context.Request.PostForm.Get("title")
 	content := context.Request.PostForm.Get("content")
-	r, err := db.Exec(`insert into blog (title,content,author,insertTime,updateTime,isDeleted,isBanned)values(
-	?,?,?,?,?,?,?
-	)`, title, content, `xxxx`, time.Now(), time.Now(), 0, 0)
+	categoryId := context.Request.PostForm.Get("categoryId")
+	categoryType := context.Request.PostForm.Get("type")
+	_, err := db.Exec(`insert into blog (title,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(
+	?,?,?,?,?,?,?,?,?
+	)`, title, content,MustGetLoginUser(context).Id, time.Now(), time.Now(), 0, 0,categoryType,categoryId)
 	if err != nil {
-		goweb.HandlerResult{Error: err.Error()}.Write(context.Writer)
+		panic(err)
 	} else {
-		id, err := r.LastInsertId()
-		if err != nil {
-			panic(err)
-		}
-		goweb.HandlerResult{Data: id}.Write(context.Writer)
+		context.Success(nil)
 	}
 }
 
@@ -271,29 +275,8 @@ func RegisterPost(context *goweb.Context) {
 		goweb.HandlerResult{Data: id}.Write(context.Writer)
 	}
 }
-
-type CategoryItem struct {
-	Id   int
-	Name string
-}
-
 func CategoryList(context *goweb.Context) {
-	rows, err := db.Query("select id,name from category where isdeleted=0 order by name")
-	if err != nil {
-		context.ShowErrorPage(http.StatusBadGateway, err.Error())
-		return
-	}
-	var categoryList []CategoryItem
-	for rows.Next() {
-		var (
-			id   int
-			name string
-		)
-		if err := rows.Scan(&id, &name); err != nil {
-			context.ShowErrorPage(http.StatusBadGateway, err.Error())
-		}
-		categoryList = append(categoryList, CategoryItem{Id: id, Name: name})
-	}
+	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("我的分类"), categoryList), "view/layout.html", "view/categorylist.html")
 }
 
@@ -348,8 +331,8 @@ func CategorySave(context *goweb.Context) {
 func CategoryDelete(context *goweb.Context) {
 	//todo check that blogs exists
 	id := context.Request.FormValue("id")
-	_, err := db.Exec(`delete from category where id=?`,id)
-	if err!=nil{
+	_, err := db.Exec(`delete from category where id=?`, id)
+	if err != nil {
 		context.Failed(err.Error())
 		return
 	}

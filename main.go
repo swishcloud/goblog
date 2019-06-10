@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/goweb"
 	"net/http"
 )
@@ -31,6 +32,7 @@ var db *sql.DB
 func init() {
 	config = ReadConfig()
 	db, _ = sql.Open("mysql", config.SqlDataSourceName)
+	dbservice.SetDb(db)
 }
 
 type ErrorPageModel struct {
