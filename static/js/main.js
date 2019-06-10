@@ -22,6 +22,11 @@ var app = {
                         before()
                     $(form).ajaxSubmit({
                         success:function (res) {
+                            if(typeof res.error==="undefined"){
+                                res={
+                                    error:"response data format from server is invalid"
+                                }
+                            }
                             var success=option.success
                             if(typeof success=="function")
                                 success(res)

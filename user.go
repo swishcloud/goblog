@@ -11,6 +11,14 @@ type User struct {
 	UserName string
 }
 
+func MustGetLoginUser(c *goweb.Context)User{
+	u,err:=GetLoginUser(c)
+	if err!=nil{
+		panic(err)
+	}
+	return u
+}
+
 func GetLoginUser(c *goweb.Context) (User,error){
 	cookie, err := c.Request.Cookie(SessionName)
 	if err != nil {

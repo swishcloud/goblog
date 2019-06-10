@@ -15,12 +15,16 @@ import (
 )
 
 const (
-	PATH_BLOGLIST = "/bloglist"
-	PATH_BLOGEDIT = "/blogedit"
-	PATH_BLOGSAVE = "/blogsave"
-	PATH_LOGIN    = "/login"
-	PATH_REGISTER = "/register"
-	PATH_LOGOUT   = "/logout"
+	PATH_BLOGLIST       = "/bloglist"
+	PATH_BLOGEDIT       = "/blogedit"
+	PATH_BLOGSAVE       = "/blogsave"
+	PATH_LOGIN          = "/login"
+	PATH_REGISTER       = "/register"
+	PATH_LOGOUT         = "/logout"
+	PATH_CATEGORYLIST   = "/categories"
+	PATH_CATEGORYEDIT   = "/categoryedit"
+	PATH_CATEGORYSAVE   = "/categorysave"
+	PATH_CATEGORYDELETE = "/categorydelete"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
@@ -37,19 +41,24 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.POST(PATH_LOGOUT, LogoutPost)
 	group.GET(PATH_REGISTER, Register)
 	group.POST(PATH_REGISTER, RegisterPost)
+	group.GET(PATH_CATEGORYLIST, CategoryList)
+	group.GET(PATH_CATEGORYEDIT, CategoryEdit)
+	group.POST(PATH_CATEGORYSAVE, CategorySave)
+	group.POST(PATH_CATEGORYDELETE, CategoryDelete)
 }
+
 type PageModel struct {
-	User        User
-	Path        string
-	WebSiteName string
-	PageTitle   string
-	Data        interface{}
-	Duration    int
+	User           User
+	Path           string
+	WebSiteName    string
+	PageTitle      string
+	Data           interface{}
+	Duration       int
 	LastUpdateTime time.Time
 }
 
 func NewPageModel(pageTitle string, data interface{}) *PageModel {
-	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data,LastUpdateTime:config.LastUpdateTime}
+	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data, LastUpdateTime: config.LastUpdateTime}
 }
 
 func (p *PageModel) Prepare(c *goweb.Context) interface{} {
@@ -131,6 +140,7 @@ func BlogList(context *goweb.Context) {
 func BlogEdit(context *goweb.Context) {
 	if !IsLogin(context) {
 		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+		return
 	}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), nil), "view/layout.html", "view/blogedit.html")
 }
@@ -260,4 +270,88 @@ func RegisterPost(context *goweb.Context) {
 		}
 		goweb.HandlerResult{Data: id}.Write(context.Writer)
 	}
+}
+
+type CategoryItem struct {
+	Id   int
+	Name string
+}
+
+func CategoryList(context *goweb.Context) {
+	rows, err := db.Query("select id,name from category where isdeleted=0 order by name")
+	if err != nil {
+		context.ShowErrorPage(http.StatusBadGateway, err.Error())
+		return
+	}
+	var categoryList []CategoryItem
+	for rows.Next() {
+		var (
+			id   int
+			name string
+		)
+		if err := rows.Scan(&id, &name); err != nil {
+			context.ShowErrorPage(http.StatusBadGateway, err.Error())
+		}
+		categoryList = append(categoryList, CategoryItem{Id: id, Name: name})
+	}
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("我的分类"), categoryList), "view/layout.html", "view/categorylist.html")
+}
+
+type CategoryEditModel struct {
+	Id   string
+	Name string
+}
+
+func CategoryEdit(context *goweb.Context) {
+	id := context.Request.URL.Query().Get("id")
+	var model CategoryEditModel
+	if id != "" {
+		r := db.QueryRow(`select name from category where isdeleted=0 and id=?`, id)
+		var name string
+		err := r.Scan(&name)
+		if err != nil {
+			context.ShowErrorPage(http.StatusNotFound, err.Error())
+			return
+		}
+		model = CategoryEditModel{Id: id, Name: name}
+	}
+	title := "编辑分类"
+	if id == "" {
+		title = "新增分类"
+	}
+	goweb.RenderPage(context, NewPageModel(GetPageTitle(title), model), "view/layout.html", "view/categoryedit.html")
+}
+func CategorySave(context *goweb.Context) {
+	if !IsLogin(context) {
+		context.Failed("登录失效")
+		return
+	}
+	name := context.Request.PostForm.Get("name")
+	id := context.Request.PostForm.Get("id")
+	if id == "" {
+		_, err := db.Exec(`insert into category (name,insertTime,isDeleted,userId)values(
+	?,?,?,?
+	)`, name, time.Now(), 0, MustGetLoginUser(context).Id)
+		if err != nil {
+			context.Failed(err.Error())
+			return
+		}
+	} else {
+		_, err := db.Exec(`update category set name=? where id=?`, name, id)
+		if err != nil {
+			context.Failed(err.Error())
+			return
+		}
+	}
+	context.Success(nil)
+}
+func CategoryDelete(context *goweb.Context) {
+	//todo check that blogs exists
+	id := context.Request.FormValue("id")
+	_, err := db.Exec(`delete from category where id=?`,id)
+	if err!=nil{
+		context.Failed(err.Error())
+		return
+	}
+	context.Success(nil)
 }
