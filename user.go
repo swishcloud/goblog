@@ -24,7 +24,7 @@ func GetLoginUser(c *goweb.Context) (User,error){
 	if err != nil {
 		return User{},err
 	}
-	plain, err := aesencryption.Decrypt([]byte(config.Key), cookie.Value)
+	plain, err := aesencryption.Decrypt(config.Key, cookie.Value)
 	if err != nil {
 		return User{},err
 	}

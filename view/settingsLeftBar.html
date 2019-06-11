@@ -1,0 +1,15 @@
+{{define "content"}}
+    <div class="container clearfix">
+        <div style="width:300px;float:left">
+            <div class="list-group">
+                {{range .Settings}}
+                    <a href="{{.Path}}"
+                       class="list-group-item list-group-item-action {{if eq .Active true}}active{{end}}">{{.Name}}</a>
+                {{end}}
+            </div>
+        </div>
+        <div class="offset-4">
+            {{template "right" .}}
+        </div>
+    </div>
+{{end}}

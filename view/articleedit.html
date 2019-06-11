@@ -1,0 +1,66 @@
+{{define "content" }}
+    {{$categoryId:=.Article.CategoryId}}
+    {{$articleType:=.Article.ArticleType}}
+    <div class="container">
+        <form action="/articlesave" method="post">
+            <input type="hidden" name="id" value="{{.Article.Id}}"/>
+            <div id="error"></div>
+            <div class="form-group">
+                <label>标题</label>
+                <input type="text" class="form-control" name="title" placeholder="请输入标题" required
+                       value="{{.Article.Title}}">
+            </div>
+            <div class="form-group">
+                <label>正文</label>
+                <textarea class="form-control" name="content" rows="3" placeholder="正文内容..."
+                          required>{{.Article.Content}}</textarea>
+            </div>
+            <div class="form-group">
+                <label>分类</label>
+                <select class="form-control col-lg-2" name="categoryId" required>
+                    {{range .CategoryList}}
+                        <option value="{{.Id}}" {{if eq $categoryId .Id}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>类型</label>
+                <select class="form-control col-lg-1" name="type" id="type">
+                    <option value="1" {{if eq $articleType 1}}selected{{end}}>公开</option>
+                    <option value="2" {{if eq $articleType 2}}selected{{end}}>私有</option>
+                    <option value="3" {{if eq $articleType 3}}selected{{end}}>加密</option>
+                </select>
+            </div>
+            <div class="form-group  {{if ne $articleType 3}}d-none{{end}}" id="pwdDiv">
+                <label>二级密码</label>
+                <input type="password" class="form-control col-lg-2" name="lev2pwd" placeholder="二级密码" required>
+            </div>
+            <button type="submit" class="btn btn-primary">发布</button>
+        </form>
+    </div>
+{{end}}
+
+{{define "script"}}
+    <script>
+        app.ajaxSubmit($("form:last"), {
+            before: function () {
+                app.closeError($('#error'))
+            },
+            success: function (res) {
+                if (res.error) {
+                    app.showError($('#error'), res.error)
+                } else {
+                    window.location.href = "/articlelist"
+                }
+            }
+        })
+        $("#type").change(function () {
+            val = $(this).val()
+            if (val == 3) {
+                $("#pwdDiv").removeClass("d-none")
+            } else {
+                $("#pwdDiv").addClass("d-none")
+            }
+        })
+    </script>
+{{end}}

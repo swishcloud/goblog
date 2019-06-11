@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>{{.PageTitle}}</title>
     <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.css">
-    <link rel="stylesheet" href="static/css/main.css">
-    <link ref="stylesheet" href="static/css/fontawesome.css">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <link ref="stylesheet" href="/static/css/fontawesome.css">
 </head>
 <body>
 <nav class=" navbar navbar-expand-lg navbar-light bg-light mb-3">
-    <a class="navbar-brand" href="/bloglist">{{.WebSiteName}}</a>
+    <a class="navbar-brand" href="/articlelist">{{.WebSiteName}}</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
             aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -19,7 +19,7 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
             {{/*<li class="nav-item">*/}}
-            {{/*<a class="nav-link" href="/bloglist">首页</a>*/}}
+            {{/*<a class="nav-link" href="/articlelist">首页</a>*/}}
             {{/*</li>*/}}
         </ul>
         {{if eq .User.Id 0}}
@@ -28,12 +28,12 @@
             </div>
         {{else}}
             <div class="position-relative" id="user-action">
-                <a href="/user/{{.User.Id}}"> {{.User.UserName}}</a>
-                <a href="/blogedit" target="_blank">
-                    <button class="btn btn-outline-primary mr-2 my-2 my-sm-0" type="submit">写文章</button>
-                </a>
+                <a href="/user/{{.User.Id}}/article"> {{.User.UserName}}</a>
                 <div class="position-absolute d-none" style="left:-20px">
                     <ul class="bg-white ul-list box-one" style="margin-top:10px;width:150px;">
+                        <li>
+                            <a href="/profile">设置</a>
+                        </li>
                         <li>
                             <form id="logoutForm" method="post" action="/logout?redirectUri={{.Path}}"
                                   class="was-validated">
@@ -43,6 +43,11 @@
                         </li>
                     </ul>
                 </div>
+            </div>
+            <div>
+                <a href="/articleedit">
+                    <button class="btn btn-outline-primary mr-2 my-2 my-sm-0" type="submit">写文章</button>
+                </a>
             </div>
         {{end}}
 
@@ -66,7 +71,6 @@
 <script src="/static/jquery-validation-1.19.0/dist/jquery.validate.js"></script>
 <script src="/static/js/jquery.form.min.js"></script>
 <script>
-    $("#login").attr("href", '/account/externall?returnurl=' + location.href)
     $("#user-action").mouseleave(function () {
         $(this).find("div").addClass("d-none")
     })

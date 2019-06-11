@@ -2,9 +2,9 @@ package main
 
 import (
 	"crypto/md5"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
 	"github.com/github-123456/goweb"
@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	PATH_BLOGLIST       = "/bloglist"
-	PATH_BLOGEDIT       = "/blogedit"
-	PATH_BLOGSAVE       = "/blogsave"
+	PATH_ARTICLELIST       = "/articlelist"
+	PATH_ARTICLEEDIT       = "/articleedit"
+	PATH_ARTICLESAVE       = "/articlesave"
 	PATH_LOGIN          = "/login"
 	PATH_REGISTER       = "/register"
 	PATH_LOGOUT         = "/logout"
@@ -26,17 +26,20 @@ const (
 	PATH_CATEGORYEDIT   = "/categoryedit"
 	PATH_CATEGORYSAVE   = "/categorysave"
 	PATH_CATEGORYDELETE = "/categorydelete"
+	PATH_SETLEVELTWOPWD = "/setlevel2pwd"
+	PATH_PROFILE        = "/profile"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
-	group.GET("/", BlogList)
-	group.RegexMatch(regexp.MustCompile(`^/blog_\d+\.html$`), Blog)
+	group.GET("/", ArticleList)
+	group.RegexMatch(regexp.MustCompile(`^/article_\d+\.html$`), Article)
+	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), UserArticle)
 	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
 	})
-	group.GET(PATH_BLOGLIST, BlogList)
-	group.GET(PATH_BLOGEDIT, BlogEdit)
-	group.POST(PATH_BLOGSAVE, BlogSave)
+	group.GET(PATH_ARTICLELIST, ArticleList)
+	group.GET(PATH_ARTICLEEDIT, ArticleEdit)
+	group.POST(PATH_ARTICLESAVE, ArticleSave)
 	group.GET(PATH_LOGIN, Login)
 	group.POST(PATH_LOGIN, LoginPost)
 	group.POST(PATH_LOGOUT, LogoutPost)
@@ -46,6 +49,9 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.GET(PATH_CATEGORYEDIT, CategoryEdit)
 	group.POST(PATH_CATEGORYSAVE, CategorySave)
 	group.POST(PATH_CATEGORYDELETE, CategoryDelete)
+	group.GET(PATH_SETLEVELTWOPWD, SetLevelTwoPwd)
+	group.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
+	group.GET(PATH_PROFILE, Profile)
 }
 
 type PageModel struct {
@@ -92,20 +98,34 @@ func Authorize(w http.ResponseWriter, req *http.Request) bool {
 	return true
 }
 
-type BlogListItemModel struct {
+type UserArticleModel struct {
+	Articles []*dbservice.ArticleDto
+}
+
+func UserArticle(context *goweb.Context) {
+	re := regexp.MustCompile(`\d+`)
+	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
+	user := dbservice.GetUser(id)
+	loginUser := MustGetLoginUser(context)
+	var queryArticleType int
+	if loginUser.Id == user.Id {
+		queryArticleType = 0
+	} else {
+		queryArticleType = 1
+	}
+	articles := dbservice.GetArticles(queryArticleType, user.Id, "")
+	model := UserArticleModel{Articles: articles}
+	goweb.RenderPage(context, NewPageModel(GetPageTitle(user.UserName), model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
+}
+
+type ArticleListItemModel struct {
 	Id         int
 	Title      string
 	Content    string
 	InsertTime string
 }
 
-func BlogList(context *goweb.Context) {
-	db, err := sql.Open("mysql", config.SqlDataSourceName)
-	if (err != nil) {
-		panic(err)
-	}
-	defer db.Close()
-
+func ArticleList(context *goweb.Context) {
 	keys, _ := context.Request.URL.Query()["key"]
 	var key string
 	if len(keys) > 0 {
@@ -113,90 +133,81 @@ func BlogList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-
-	rows, err := db.Query("select id,title,content,insertTime from blog where title like ? order by updateTime desc", "%"+key+"%")
-	if err != nil {
-		panic(err.Error())
-	}
-	defer rows.Close()
-
-	var blogItems []BlogListItemModel
-	for rows.Next() {
-		var (
-			id         int
-			title      string
-			content    string
-			insertTime string
-		)
-		if err := rows.Scan(&id, &title, &content, &insertTime); err != nil {
-			panic(err)
-		}
-		blogItems = append(blogItems, BlogListItemModel{Id: id, Title: title, Content: content, InsertTime: insertTime})
-	}
-
-	goweb.RenderPage(context, NewPageModel("GOBLOG", blogItems), "view/layout.html", "view/bloglist.html")
+	data := dbservice.GetArticles(1, 0, key)
+	goweb.RenderPage(context, NewPageModel("GOARTICLE", data), "view/layout.html", "view/articlelist.html")
 
 }
 
-type BlogEditModel struct {
+type ArticleEditModel struct {
 	CategoryList []dbservice.CategoryDto
+	Article         dbservice.ArticleDto
 }
 
-func BlogEdit(context *goweb.Context) {
+func ArticleEdit(context *goweb.Context) {
 	if !IsLogin(context) {
 		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
 		return
 	}
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
-	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), BlogEditModel{CategoryList: categoryList}), "view/layout.html", "view/blogedit.html")
+	model := ArticleEditModel{CategoryList: categoryList}
+	id := context.Request.URL.Query().Get("id")
+	if id != "" {
+		intId, err := strconv.Atoi(id)
+		if err != nil {
+			panic(err)
+		}
+		article := dbservice.GetArticle(intId)
+		model.Article = *article
+	}
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), model), "view/layout.html", "view/articleedit.html")
 }
 
-func BlogSave(context *goweb.Context) {
+func ArticleSave(context *goweb.Context) {
 	context.Request.ParseForm()
+	id := context.Request.PostForm.Get("id")
 	title := context.Request.PostForm.Get("title")
 	content := context.Request.PostForm.Get("content")
 	categoryId := context.Request.PostForm.Get("categoryId")
-	categoryType := context.Request.PostForm.Get("type")
-	_, err := db.Exec(`insert into blog (title,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(
-	?,?,?,?,?,?,?,?,?
-	)`, title, content,MustGetLoginUser(context).Id, time.Now(), time.Now(), 0, 0,categoryType,categoryId)
+	articleType := context.Request.PostForm.Get("type")
+	lev2pwd := context.Request.PostForm.Get("lev2pwd")
+
+	intArticleType, err := strconv.Atoi(articleType)
 	if err != nil {
 		panic(err)
-	} else {
-		context.Success(nil)
 	}
+	intCategoryId, err := strconv.Atoi(categoryId)
+	if err != nil {
+		panic(err)
+	}
+
+	intId, err := strconv.Atoi(id)
+	if err != nil {
+		panic(err)
+	}
+	if intId == 0 {
+		dbservice.NewArticle(title, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd)
+	} else {
+		dbservice.UpdateArticle(intId, title, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id)
+	}
+	context.Success(nil)
 }
 
-type BlogModel struct {
+type ArticleModel struct {
 	Id         int
 	Title      string
 	Content    string
 	InsertTime string
 }
 
-func Blog(context *goweb.Context) {
+func Article(context *goweb.Context) {
 	re := regexp.MustCompile(`\d+`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
-
-	rows, err := db.Query("select id,title,content,insertTime from blog where id=?", id)
-	if err != nil {
-		panic(err)
-	}
-
-	var (
-		title      string
-		content    string
-		insertTime string
-	)
-	if !rows.Next() {
-		http.NotFound(context.Writer, context.Request)
+	article := dbservice.GetArticle(id)
+	if article == nil {
+		context.ShowErrorPage(http.StatusNotFound, "page not found")
 		return
 	}
-	if err := rows.Scan(&id, &title, &content, &insertTime); err != nil {
-		panic(err)
-	}
-
-	goweb.RenderPage(context, NewPageModel(GetPageTitle(title), BlogModel{Id: id, Title: title, Content: content, InsertTime: insertTime}), "view/layout.html", "view/blog.html")
+	goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), article), "view/layout.html", "view/article.html")
 }
 
 func Login(context *goweb.Context) {
@@ -206,9 +217,6 @@ func Login(context *goweb.Context) {
 func LoginPost(context *goweb.Context) {
 	account := context.Request.PostForm.Get("account")
 	password := context.Request.PostForm.Get("password")
-
-	b := md5.Sum([]byte(password))
-	hashedPassword := hex.EncodeToString(b[:])
 
 	var (
 		r_id       int
@@ -222,7 +230,7 @@ func LoginPost(context *goweb.Context) {
 		return
 	}
 
-	if hashedPassword != r_password {
+	if !common.PwdCheck(r_password, password) {
 		context.Failed("账号或密码错误")
 		return
 	}
@@ -233,7 +241,7 @@ func LoginPost(context *goweb.Context) {
 	}
 	userJsonText := string(jsonB)
 
-	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt([]byte(config.Key), userJsonText), Path: "/"}
+	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt(config.Key, userJsonText), Path: "/"}
 	http.SetCookie(context.Writer, &cookie)
 
 	context.Success(nil)
@@ -329,7 +337,7 @@ func CategorySave(context *goweb.Context) {
 	context.Success(nil)
 }
 func CategoryDelete(context *goweb.Context) {
-	//todo check that blogs exists
+	//todo check that articles exists
 	id := context.Request.FormValue("id")
 	_, err := db.Exec(`delete from category where id=?`, id)
 	if err != nil {
@@ -337,4 +345,56 @@ func CategoryDelete(context *goweb.Context) {
 		return
 	}
 	context.Success(nil)
+}
+
+type SettingsItemModel struct {
+	Path   string
+	Name   string
+	Active bool
+}
+
+func GetSettingsModel(activePath string) []*SettingsItemModel {
+	model := []*SettingsItemModel{
+		&SettingsItemModel{Path: PATH_PROFILE, Name: "个人资料"},
+		&SettingsItemModel{Path: PATH_SETLEVELTWOPWD, Name: "二级密码"},
+	}
+	for _, v := range model {
+		if v.Path == activePath {
+			v.Active = true
+			break
+		}
+	}
+	return model
+}
+
+type SetLevelTwoPwdModel struct {
+	Settings       []*SettingsItemModel
+	ExistLevel2Pwd bool
+}
+
+func SetLevelTwoPwd(context *goweb.Context) {
+	user := dbservice.GetUser(MustGetLoginUser(context).Id)
+	existLevel2Pwd := user.Level2pwd != nil
+	model := SetLevelTwoPwdModel{Settings: GetSettingsModel(context.Request.URL.Path)}
+	model.ExistLevel2Pwd = existLevel2Pwd
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("设置二级密码"), model), "view/layout.html", "view/settingsLeftBar.html", "view/setleveltwopwd.html")
+}
+func SetLevelTwoPwdPost(context *goweb.Context) {
+	oldPwd := context.Request.PostForm.Get("oldPwd")
+	newPwd := context.Request.PostForm.Get("newPwd")
+	user := dbservice.GetUser(MustGetLoginUser(context).Id)
+	if user.Level2pwd != nil && !common.PwdCheck(*user.Level2pwd, oldPwd) {
+		context.Failed("旧密码有误")
+		return
+	}
+	dbservice.SetLevelTwoPwd(newPwd, user.Id)
+	context.Success(nil)
+}
+
+type ProfileModel struct {
+	Settings []*SettingsItemModel
+}
+
+func Profile(context *goweb.Context) {
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("个人资料"), ProfileModel{Settings: GetSettingsModel(context.Request.URL.Path)}), "view/layout.html", "view/settingsLeftBar.html", "view/profile.html")
 }
