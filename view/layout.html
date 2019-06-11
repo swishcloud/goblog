@@ -6,54 +6,42 @@
     <title>{{.PageTitle}}</title>
     <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.css">
     <link rel="stylesheet" href="/static/css/main.css">
-    <link ref="stylesheet" href="/static/css/fontawesome.css">
+    <link rel="stylesheet" href="/static/css/fontawesome.css">
+    <link rel="stylesheet" href="/static/css/navbar.css">
 </head>
 <body>
-<nav class=" navbar navbar-expand-lg navbar-light bg-light mb-3">
-    <a class="navbar-brand" href="/articlelist">{{.WebSiteName}}</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
-            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-    </button>
-
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
-        <ul class="navbar-nav mr-auto">
-            {{/*<li class="nav-item">*/}}
-            {{/*<a class="nav-link" href="/articlelist">首页</a>*/}}
-            {{/*</li>*/}}
-        </ul>
-        {{if eq .User.Id 0}}
-            <div>
-                <a href="/login">登录</a>
-            </div>
-        {{else}}
-            <div class="position-relative" id="user-action">
-                <a href="/user/{{.User.Id}}/article"> {{.User.UserName}}</a>
-                <div class="position-absolute d-none" style="left:-20px">
-                    <ul class="bg-white ul-list box-one" style="margin-top:10px;width:150px;">
-                        <li>
-                            <a href="/profile">设置</a>
-                        </li>
-                        <li>
-                            <form id="logoutForm" method="post" action="/logout?redirectUri={{.Path}}"
-                                  class="was-validated">
-                                <a href="javascript:;;" class="text-dark"
-                                   onclick="document.getElementById('logoutForm').submit()">注销</a>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            <div>
-                <a href="/articleedit">
-                    <button class="btn btn-outline-primary mr-2 my-2 my-sm-0" type="submit">写文章</button>
-                </a>
-            </div>
-        {{end}}
-
+<div class="nav">
+    <div style="display:flex;align-items:center">
+        <div class="brand"><a href="/">GOBLOG</a></div>
+        <div class="toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
     </div>
-</nav>
-{{template "content" .Data}}
+    <ul class="menu">
+        <li class="menu-item">
+            菜单一
+        </li>
+        <li class="menu-item">
+            菜单二
+        </li>
+        <li class="menu-item">
+            菜单三
+            <ul class="sub-menu">
+                <li class="sub-menu-item">
+                    子菜单一
+                </li>
+                <li class="sub-menu-item">
+                    子菜单二
+                </li>
+            </ul>
+        </li>
+    </ul>
+</div>
+<div class="page-content">
+    {{template "content" .Data}}
+</div>
 <div id="mask" class="d-none">
     <div class="d-flex justify-content-center align-items-center">
         <div class="spinner-border text-light" role="status">
@@ -66,18 +54,11 @@
     <p>版本更新时间:{{.LastUpdateTime}}</p>
 </div>
 <script src="/static/js/jquery-3.4.1.min.js"></script>
+<script src="/static/js/navbar.js"></script>
 <script src="/static/js/main.js"></script>
 <script src="/static/bootstrap/js/bootstrap.min.js"></script>
 <script src="/static/jquery-validation-1.19.0/dist/jquery.validate.js"></script>
 <script src="/static/js/jquery.form.min.js"></script>
-<script>
-    $("#user-action").mouseleave(function () {
-        $(this).find("div").addClass("d-none")
-    })
-    $("#user-action").mouseenter(function () {
-        $(this).find("div").removeClass("d-none")
-    })
-</script>
 {{template "script" .}}
 </body>
 </html>
