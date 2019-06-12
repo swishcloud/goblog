@@ -6,11 +6,27 @@
                 <span>发布时间:{{.Article.InsertTime}}</span>
                 {{if eq .Readonly false}}
                     <a href="/articleedit?id={{.Article.Id}}">编辑</a>
-                    <a href="javascript:;">删除</a>
-                {{end}}</p>
+                    <a href="javascript:;" id="delete">删除</a>
+                {{end}}
+            </p>
         </div>
         <div style="word-wrap:break-word;">{{.Article.Content}}</div>
     </div>
 {{end}}
 {{define "script"}}
+    <script>
+        var id={{.Article.Id}}
+        $("#delete").click(function () {
+            if (confirm("确定要删除吗?")) {
+                $.post("/articledelete", {id: id}, function (res) {
+                    debugger
+                    if (res.error) {
+                        alert(res.error)
+                    } else {
+                        window.location.href="/"
+                    }
+                })
+            }
+        })
+    </script>
 {{end}}

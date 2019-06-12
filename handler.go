@@ -19,6 +19,7 @@ const (
 	PATH_ARTICLELIST    = "/articlelist"
 	PATH_ARTICLEEDIT    = "/articleedit"
 	PATH_ARTICLESAVE    = "/articlesave"
+	PATH_ARTICLEDELETE  = "/articledelete"
 	PATH_LOGIN          = "/login"
 	PATH_REGISTER       = "/register"
 	PATH_LOGOUT         = "/logout"
@@ -40,6 +41,7 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.GET(PATH_ARTICLELIST, ArticleList)
 	group.GET(PATH_ARTICLEEDIT, ArticleEdit)
 	group.POST(PATH_ARTICLESAVE, ArticleSave)
+	group.POST(PATH_ARTICLEDELETE, ArticleDelete)
 	group.GET(PATH_LOGIN, Login)
 	group.POST(PATH_LOGIN, LoginPost)
 	group.POST(PATH_LOGOUT, LogoutPost)
@@ -58,7 +60,7 @@ type PageModel struct {
 	User           User
 	Path           string
 	RequestUri     string
-	Request     *http.Request
+	Request        *http.Request
 	WebSiteName    string
 	PageTitle      string
 	Data           interface{}
@@ -72,8 +74,8 @@ func NewPageModel(pageTitle string, data interface{}) *PageModel {
 
 func (p *PageModel) Prepare(c *goweb.Context) interface{} {
 	p.Path = c.Request.URL.Path
-	p.RequestUri=c.Request.RequestURI
-	p.Request=c.Request
+	p.RequestUri = c.Request.RequestURI
+	p.Request = c.Request
 
 	u, err := GetLoginUser(c)
 	if err == nil {
@@ -361,6 +363,22 @@ func CategoryDelete(context *goweb.Context) {
 	//todo check that articles exists
 	id := context.Request.FormValue("id")
 	_, err := db.Exec(`delete from category where id=?`, id)
+	if err != nil {
+		context.Failed(err.Error())
+		return
+	}
+	context.Success(nil)
+}
+
+func ArticleDelete(context *goweb.Context) {
+	id := context.Request.FormValue("id")
+	intId, _ := strconv.Atoi(id)
+	var article = dbservice.GetArticle(intId)
+	if article.UserId != MustGetLoginUser(context).Id {
+		context.Failed("no permission")
+		return
+	}
+	_, err := db.Exec(`delete from article where id=?`, id)
 	if err != nil {
 		context.Failed(err.Error())
 		return
