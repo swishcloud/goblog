@@ -103,8 +103,8 @@ func NewArticle(title string, content string, userId int, articleType int, categ
 	if articleType == 3 {
 		user := GetUser(userId)
 		if user.Level2pwd == nil {
-			//return dbServiceError{"用户未设置二级密码"}
-			panic("用户未设置二级密码")
+			//return dbServiceError{"您未设置二级密码"}
+			panic("您未设置二级密码")
 		}
 		if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
 			//return dbServiceError{"二级密码错误"}
@@ -124,8 +124,8 @@ func UpdateArticle(id int, title string, content string, articleType int, catego
 	if articleType == 3 {
 		user := GetUser(userId)
 		if user.Level2pwd == nil {
-			//return dbServiceError{"用户未设置二级密码"}
-			panic("用户未设置二级密码")
+			//return dbServiceError{"您未设置二级密码"}
+			panic("您未设置二级密码")
 		}
 		if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
 			//return dbServiceError{"二级密码错误"}

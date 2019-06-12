@@ -268,7 +268,7 @@ func ArticleLockPost(context *goweb.Context) {
 	}
 	c, err := aesencryption.Decrypt(pwd, article.Content)
 	if err != nil {
-		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
+		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id,Type:strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
 	}
 	article.Content = c;
