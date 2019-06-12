@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
@@ -20,6 +18,7 @@ const (
 	PATH_ARTICLEEDIT    = "/articleedit"
 	PATH_ARTICLESAVE    = "/articlesave"
 	PATH_ARTICLEDELETE  = "/articledelete"
+	PATH_ARTICLELOCK    = "/articlelock"
 	PATH_LOGIN          = "/login"
 	PATH_REGISTER       = "/register"
 	PATH_LOGOUT         = "/logout"
@@ -42,6 +41,8 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.GET(PATH_ARTICLEEDIT, ArticleEdit)
 	group.POST(PATH_ARTICLESAVE, ArticleSave)
 	group.POST(PATH_ARTICLEDELETE, ArticleDelete)
+	group.GET(PATH_ARTICLELOCK, ArticleLock)
+	group.POST(PATH_ARTICLELOCK, ArticleLockPost)
 	group.GET(PATH_LOGIN, Login)
 	group.POST(PATH_LOGIN, LoginPost)
 	group.POST(PATH_LOGOUT, LogoutPost)
@@ -156,14 +157,22 @@ func ArticleEdit(context *goweb.Context) {
 	}
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
 	model := ArticleEditModel{CategoryList: categoryList}
-	id := context.Request.URL.Query().Get("id")
-	if id != "" {
-		intId, err := strconv.Atoi(id)
-		if err != nil {
-			panic(err)
-		}
-		article := dbservice.GetArticle(intId)
+	if article, ok := context.Data["article"].(*dbservice.ArticleDto); ok {
 		model.Article = *article
+	} else {
+		id := context.Request.URL.Query().Get("id")
+		if id != "" {
+			intId, err := strconv.Atoi(id)
+			if err != nil {
+				panic(err)
+			}
+			article := dbservice.GetArticle(intId)
+			if article.ArticleType == 3 {
+				http.Redirect(context.Writer, context.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=1", 302)
+				return
+			}
+			model.Article = *article
+		}
 	}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("写文章"), model), "view/layout.html", "view/articleedit.html")
 }
@@ -225,11 +234,51 @@ func Article(context *goweb.Context) {
 				return
 			}
 		}
+		if article.ArticleType == 3 {
+			http.Redirect(context.Writer, context.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=2", 302)
+			return
+		}
 		if article.UserId == loginUserId {
 			model.Readonly = false
 		}
 	}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
+}
+
+type ArticleLockModel struct {
+	Id    string
+	Error string
+	Type  string
+}
+
+func ArticleLock(context *goweb.Context) {
+	id := context.Request.URL.Query().Get("id")
+	t := context.Request.URL.Query().Get("t")
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Type: t}), "view/layout.html", "view/articlelock.html")
+}
+func ArticleLockPost(context *goweb.Context) {
+	id := context.Request.PostForm.Get("id")
+	pwd := context.Request.PostForm.Get("pwd")
+	t, _ := strconv.Atoi(context.Request.PostForm.Get("type"))
+	intId, _ := strconv.Atoi(id)
+	article := dbservice.GetArticle(intId)
+	if article.UserId != MustGetLoginUser(context).Id {
+		context.ShowErrorPage(http.StatusUnauthorized, "")
+		return
+	}
+	c, err := aesencryption.Decrypt(pwd, article.Content)
+	if err != nil {
+		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
+		return
+	}
+	article.Content = c;
+	if t == 1 {
+		context.Data["article"] = article
+		ArticleEdit(context)
+	} else if t == 2 {
+		model := ArticleModel{Article: article, Readonly: false}
+		goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
+	}
 }
 
 func Login(context *goweb.Context) {
@@ -290,21 +339,8 @@ func Register(context *goweb.Context) {
 func RegisterPost(context *goweb.Context) {
 	account := context.Request.PostForm.Get("account")
 	password := context.Request.PostForm.Get("password")
-	passwordBytes := []byte(password)
-	b := md5.Sum(passwordBytes)
-	hashedPassword := hex.EncodeToString(b[:])
-	r, err := db.Exec(`insert into user (userName,password,insertTime,isDeleted,isBanned)values(
-	?,?,?,?,?
-	)`, account, hashedPassword, time.Now(), 0, 0)
-	if err != nil {
-		goweb.HandlerResult{Error: err.Error()}.Write(context.Writer)
-	} else {
-		id, err := r.LastInsertId()
-		if err != nil {
-			panic(err)
-		}
-		goweb.HandlerResult{Data: id}.Write(context.Writer)
-	}
+	dbservice.NewUser(account, password)
+	context.Success(nil)
 }
 func CategoryList(context *goweb.Context) {
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
@@ -343,19 +379,10 @@ func CategorySave(context *goweb.Context) {
 	name := context.Request.PostForm.Get("name")
 	id := context.Request.PostForm.Get("id")
 	if id == "" {
-		_, err := db.Exec(`insert into category (name,insertTime,isDeleted,userId)values(
-	?,?,?,?
-	)`, name, time.Now(), 0, MustGetLoginUser(context).Id)
-		if err != nil {
-			context.Failed(err.Error())
-			return
-		}
+		dbservice.NewCategory(nil,name, MustGetLoginUser(context).Id)
 	} else {
-		_, err := db.Exec(`update category set name=? where id=?`, name, id)
-		if err != nil {
-			context.Failed(err.Error())
-			return
-		}
+		intId, _ := strconv.Atoi(id)
+		dbservice.UpdateCategory(name, intId, MustGetLoginUser(context).Id)
 	}
 	context.Success(nil)
 }
@@ -422,9 +449,11 @@ func SetLevelTwoPwdPost(context *goweb.Context) {
 	oldPwd := context.Request.PostForm.Get("oldPwd")
 	newPwd := context.Request.PostForm.Get("newPwd")
 	user := dbservice.GetUser(MustGetLoginUser(context).Id)
-	if user.Level2pwd != nil && !common.PwdCheck(*user.Level2pwd, oldPwd) {
-		context.Failed("旧密码有误")
-		return
+	if user.Level2pwd != nil {
+		if !common.Lev2PwdCheck(*user.Level2pwd, oldPwd) {
+			context.Failed("旧密码有误")
+			return
+		}
 	}
 	dbservice.SetLevelTwoPwd(newPwd, user.Id)
 	context.Success(nil)

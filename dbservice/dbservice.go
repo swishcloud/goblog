@@ -1,6 +1,7 @@
 package dbservice
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"github.com/github-123456/goblog/common"
@@ -46,21 +47,21 @@ func GetArticles(articleType, userId int, key string) []*ArticleDto {
 	var articles []*ArticleDto
 	for rows.Next() {
 		var (
-			id         int
-			title      string
-			content    string
-			insertTime string
-			categoryId int
+			id          int
+			title       string
+			content     string
+			insertTime  string
+			categoryId  int
 			articleType int
 		)
-		if err := rows.Scan(&id, &title, &content, &insertTime,&categoryId,&articleType); err != nil {
+		if err := rows.Scan(&id, &title, &content, &insertTime, &categoryId, &articleType); err != nil {
 			panic(err)
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title, Content: content, InsertTime: insertTime,CategoryId:categoryId,ArticleType:articleType})
+		articles = append(articles, &ArticleDto{Id: id, Title: title, Content: content, InsertTime: insertTime, CategoryId: categoryId, ArticleType: articleType})
 	}
-	for _,v:=range articles{
-		if v.ArticleType==3{
-			v.Content=""
+	for _, v := range articles {
+		if v.ArticleType == 3 {
+			v.Content = ""
 		}
 	}
 	return articles
@@ -85,20 +86,27 @@ func GetCategories(userId int) []CategoryDto {
 	return categoryList
 }
 
-func SetLevelTwoPwd(pwd string, userId int) {
-	_, err := db.Exec("update user set level2pwd=? where id=?", common.HashPwd(pwd), userId)
+func UpdateCategory(name string, id, loginUserId int) {
+	_, err := db.Exec(`update category set name=? where id=? and userId=?`, name, id, loginUserId)
 	if err != nil {
 		panic(err)
 	}
 }
-func NewArticle(title string, content string, userId int, articleType int, categoryId int, level2pwd string)  {
+
+func SetLevelTwoPwd(pwd string, userId int) {
+	_, err := db.Exec("update user set level2pwd=? where id=?", aesencryption.Encrypt(pwd, time.Now().String()), userId)
+	if err != nil {
+		panic(err)
+	}
+}
+func NewArticle(title string, content string, userId int, articleType int, categoryId int, level2pwd string) {
 	if articleType == 3 {
 		user := GetUser(userId)
 		if user.Level2pwd == nil {
 			//return dbServiceError{"用户未设置二级密码"}
 			panic("用户未设置二级密码")
 		}
-		if !common.PwdCheck(*user.Level2pwd, level2pwd) {
+		if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
 			//return dbServiceError{"二级密码错误"}
 			panic("二级密码错误")
 		}
@@ -112,19 +120,19 @@ func NewArticle(title string, content string, userId int, articleType int, categ
 		panic(err)
 	}
 }
-func UpdateArticle(id int, title string, content string, articleType int, categoryId, level2pwd string,userId int) {
+func UpdateArticle(id int, title string, content string, articleType int, categoryId, level2pwd string, userId int) {
 	if articleType == 3 {
 		user := GetUser(userId)
 		if user.Level2pwd == nil {
 			//return dbServiceError{"用户未设置二级密码"}
 			panic("用户未设置二级密码")
 		}
-		if !common.PwdCheck(*user.Level2pwd, level2pwd) {
+		if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
 			//return dbServiceError{"二级密码错误"}
 			panic("二级密码错误")
 		}
 		content = aesencryption.Encrypt(level2pwd, content)
-	}else if articleType != 1 && articleType != 2 {
+	} else if articleType != 1 && articleType != 2 {
 		panic(fmt.Sprintf("articleType %d is invalid", articleType))
 	}
 	_, err := db.Exec(`update article set title=?,content=?,type=?,categoryId=?,updateTime=? where id=?`, title, content, articleType, categoryId, time.Now(), id)
@@ -136,17 +144,17 @@ func UpdateArticle(id int, title string, content string, articleType int, catego
 func GetArticle(id int) *ArticleDto {
 	r := db.QueryRow("select id,title,content,insertTime,type,categoryId,userId from article where id=?", id)
 	var (
-		title      string
-		content    string
-		insertTime string
-		articleType   int
-		categoryId int
-		userId int
+		title       string
+		content     string
+		insertTime  string
+		articleType int
+		categoryId  int
+		userId      int
 	)
-	if err := r.Scan(&id, &title, &content, &insertTime, &articleType, &categoryId,&userId); err != nil {
+	if err := r.Scan(&id, &title, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
 		return nil
 	}
-	return &ArticleDto{Title: title, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId,UserId:userId}
+	return &ArticleDto{Title: title, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
 }
 
 func GetUser(userId int) *UserDto {
@@ -160,4 +168,43 @@ func GetUser(userId int) *UserDto {
 		return nil
 	}
 	return &UserDto{Id: userId, UserName: userName, Level2pwd: level2pwd}
+}
+
+func NewCategory(tx *sql.Tx, name string, userId int) {
+	tx = CheckTx(tx)
+	_, err := tx.Exec(`insert into category (name,insertTime,isDeleted,userId)values(?,?,?,?)`, name, time.Now(), 0, userId)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func NewUser(userName, password string) {
+	tx := CheckTx(nil)
+	r, err := tx.Exec(`insert into user (userName,password,insertTime,isDeleted,isBanned)values(
+	?,?,?,?,?
+	)`, userName, common.Md5Hash(password), time.Now(), 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	lastId, err := r.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		panic(err)
+	}
+	intLastId := int(lastId)
+	NewCategory(tx, "默认分类", intLastId)
+	if err := tx.Commit(); err != nil {
+		panic(err)
+	}
+}
+
+func CheckTx(tx *sql.Tx) *sql.Tx {
+	if tx == nil {
+		newTx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
+		if err != nil {
+			panic(err)
+		}
+		tx = newTx
+	}
+	return tx
 }

@@ -33,6 +33,9 @@ var app = {
                             else{
                                 throw Error("Missing required 'success' callback function.")
                             }
+                        },
+                        error: function () {
+                                alert("server error")
                         }
                     })
                 }
