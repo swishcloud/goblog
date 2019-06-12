@@ -35,7 +35,7 @@
                 if (res.error) {
                     app.showError($('#error'), res.error)
                 } else {
-                    if (redirectUri.startsWith(window.location.pathname)){
+                    if (redirectUri.startsWith(window.location.pathname)||redirectUri===""){
                         window.location.href="/"
                     }else{
                         window.location.href =redirectUri
