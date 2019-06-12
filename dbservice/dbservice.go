@@ -134,18 +134,19 @@ func UpdateArticle(id int, title string, content string, articleType int, catego
 }
 
 func GetArticle(id int) *ArticleDto {
-	r := db.QueryRow("select id,title,content,insertTime,type,categoryId from article where id=?", id)
+	r := db.QueryRow("select id,title,content,insertTime,type,categoryId,userId from article where id=?", id)
 	var (
 		title      string
 		content    string
 		insertTime string
 		articleType   int
 		categoryId int
+		userId int
 	)
-	if err := r.Scan(&id, &title, &content, &insertTime, &articleType, &categoryId); err != nil {
+	if err := r.Scan(&id, &title, &content, &insertTime, &articleType, &categoryId,&userId); err != nil {
 		return nil
 	}
-	return &ArticleDto{Title: title, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId}
+	return &ArticleDto{Title: title, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId,UserId:userId}
 }
 
 func GetUser(userId int) *UserDto {

@@ -26,7 +26,8 @@
 
 {{define "script"}}
     <script>
-        app.ajaxSubmit($("form"), {
+        var redirectUri= "{{.}}"
+        app.ajaxSubmit($("form:last"), {
             before: function () {
                 app.closeError($('#error'))
             },
@@ -34,7 +35,11 @@
                 if (res.error) {
                     app.showError($('#error'), res.error)
                 } else {
-                    window.location.href = "/"
+                    if (redirectUri.startsWith(window.location.pathname)){
+                        window.location.href="/"
+                    }else{
+                        window.location.href =redirectUri
+                    }
                 }
             }
         })

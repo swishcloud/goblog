@@ -1,9 +1,15 @@
 {{define "content"}}
     <div class="container">
         <div class="text-center">
-            <h2>{{.Title}}</h2>
-            <p>发布时间:{{.InsertTime}}</p></div>
-        <div style="word-wrap:break-word;">{{.Content}}</div>
+            <h2>{{.Article.Title}}</h2>
+            <p>
+                <span>发布时间:{{.Article.InsertTime}}</span>
+                {{if eq .Readonly false}}
+                    <a href="/articleedit?id={{.Article.Id}}">编辑</a>
+                    <a href="javascript:;">删除</a>
+                {{end}}</p>
+        </div>
+        <div style="word-wrap:break-word;">{{.Article.Content}}</div>
     </div>
 {{end}}
 {{define "script"}}

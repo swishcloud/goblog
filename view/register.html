@@ -9,26 +9,32 @@
         <form action="/register" method="post" class="col-lg-4" id="registerForm">
             <div id="error">
             </div>
-            <div class="form-group">
-                <label for="account">账号</label>
-                <input type="text" class="form-control" id="account" name="account" placeholder="账号" required>
+            <div id="register-form">
+                <div class="form-group">
+                    <label for="account">账号</label>
+                    <input type="text" class="form-control" id="account" name="account" placeholder="账号" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="密码" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码</label>
+                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword"
+                           placeholder="密码" required>
+                </div>
+                <button id="login" type="submit" class="btn btn-primary">注册</button>
+                <p class="mt-2">已有账号?<a href="/login">现在登录</a></p>
             </div>
-            <div class="form-group">
-                <label for="password">密码</label>
-                <input type="password" class="form-control" id="password" name="password" placeholder="密码" required>
+            <div id="register-result" class="d-none text-center">
+                <p><span>注册成功 </span><a href="/login">前往登录</a></p>
             </div>
-            <div class="form-group">
-                <label for="confirmPassword">确认密码</label>
-                <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" placeholder="密码" required>
-            </div>
-            <button id="login" type="submit" class="btn btn-primary">注册</button>
-            <p class="mt-2">已有账号?<a href="/login" >现在登录</a></p>
         </form>
     </div>
 {{end}}
 {{define "script"}}
     <script>
-        app.ajaxSubmit($("form"), {
+        app.ajaxSubmit($("form:last"), {
             before: function () {
                 app.closeError($('#error'))
             },
@@ -36,10 +42,11 @@
                 if (res.error) {
                     app.showError($('#error'), res.error)
                 } else {
-                    window.location.href = "/"
+                    $("#register-form").addClass("d-none")
+                    $("#register-result").removeClass("d-none")
                 }
             }
-        },{
+        }, {
             password: "required",
             confirmPassword: {
                 equalTo: "#password"

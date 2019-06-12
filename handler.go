@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	PATH_ARTICLELIST       = "/articlelist"
-	PATH_ARTICLEEDIT       = "/articleedit"
-	PATH_ARTICLESAVE       = "/articlesave"
+	PATH_ARTICLELIST    = "/articlelist"
+	PATH_ARTICLEEDIT    = "/articleedit"
+	PATH_ARTICLESAVE    = "/articlesave"
 	PATH_LOGIN          = "/login"
 	PATH_REGISTER       = "/register"
 	PATH_LOGOUT         = "/logout"
@@ -57,6 +57,8 @@ func BindHandlers(group *goweb.RouterGroup) {
 type PageModel struct {
 	User           User
 	Path           string
+	RequestUri     string
+	Request     *http.Request
 	WebSiteName    string
 	PageTitle      string
 	Data           interface{}
@@ -70,6 +72,8 @@ func NewPageModel(pageTitle string, data interface{}) *PageModel {
 
 func (p *PageModel) Prepare(c *goweb.Context) interface{} {
 	p.Path = c.Request.URL.Path
+	p.RequestUri=c.Request.RequestURI
+	p.Request=c.Request
 
 	u, err := GetLoginUser(c)
 	if err == nil {
@@ -140,12 +144,12 @@ func ArticleList(context *goweb.Context) {
 
 type ArticleEditModel struct {
 	CategoryList []dbservice.CategoryDto
-	Article         dbservice.ArticleDto
+	Article      dbservice.ArticleDto
 }
 
 func ArticleEdit(context *goweb.Context) {
 	if !IsLogin(context) {
-		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+		http.Redirect(context.Writer, context.Request, PATH_LOGIN+"?redirectUri="+context.Request.RequestURI, 302)
 		return
 	}
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
@@ -193,10 +197,8 @@ func ArticleSave(context *goweb.Context) {
 }
 
 type ArticleModel struct {
-	Id         int
-	Title      string
-	Content    string
-	InsertTime string
+	Article  *dbservice.ArticleDto
+	Readonly bool
 }
 
 func Article(context *goweb.Context) {
@@ -207,11 +209,30 @@ func Article(context *goweb.Context) {
 		context.ShowErrorPage(http.StatusNotFound, "page not found")
 		return
 	}
-	goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), article), "view/layout.html", "view/article.html")
+	model := ArticleModel{Article: article, Readonly: true}
+	if !IsLogin(context) {
+		if article.ArticleType != 1 {
+			http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+			return
+		}
+	} else {
+		loginUserId := MustGetLoginUser(context).Id
+		if article.ArticleType != 1 {
+			if article.UserId != loginUserId {
+				context.ShowErrorPage(http.StatusUnauthorized, "")
+				return
+			}
+		}
+		if article.UserId == loginUserId {
+			model.Readonly = false
+		}
+	}
+	goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
 }
 
 func Login(context *goweb.Context) {
-	goweb.RenderPage(context, NewPageModel(GetPageTitle("登录"), nil), "view/layout.html", "view/login.html")
+	redirectUri := context.Request.URL.Query().Get("redirectUri")
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("登录"), redirectUri), "view/layout.html", "view/login.html")
 }
 
 func LoginPost(context *goweb.Context) {

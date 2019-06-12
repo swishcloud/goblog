@@ -11,6 +11,7 @@ type ArticleDto struct {
 	InsertTime string
 	ArticleType int
 	CategoryId int
+	UserId int
 }
 type UserDto struct{
 	Id int
