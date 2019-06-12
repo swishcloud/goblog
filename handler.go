@@ -134,7 +134,7 @@ func ArticleList(context *goweb.Context) {
 		key = ""
 	}
 	data := dbservice.GetArticles(1, 0, key)
-	goweb.RenderPage(context, NewPageModel("GOARTICLE", data), "view/layout.html", "view/articlelist.html")
+	goweb.RenderPage(context, NewPageModel("GOBLOG", data), "view/layout.html", "view/articlelist.html")
 
 }
 

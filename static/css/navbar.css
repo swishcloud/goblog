@@ -45,7 +45,9 @@
 }
 
 @media only screen and (min-width: 992px) {
-
+    .nav > div {
+        position: absolute;
+    }
 
     .brand {
         line-height: 50px;
@@ -63,6 +65,8 @@
         float: left;
         display: flex;
         align-items: center;
+        justify-content: flex-end;
+        width: 100%;
     }
 
     .menu-item {
@@ -93,6 +97,7 @@
 .nav {
     background-color: black;
     position: fixed;
+    height: 50px;
     z-index: 100;
     width: 100%;
     top: 0;
@@ -111,7 +116,7 @@
     position: absolute;
     border: 2px solid #fff;
     border-radius: 5px;
-    height: 35px;
+    height: 34px;
     margin: auto 0px;
 }
 
