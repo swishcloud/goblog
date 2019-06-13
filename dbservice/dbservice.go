@@ -49,20 +49,20 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 		var (
 			id          int
 			title       string
-			summary     *string
-			content     *string
+			summary     string
+			content     string
 			insertTime  string
 			categoryId  int
 			articleType int
 		)
-		if err := rows.Scan(&id, &title,&summary, &content, &insertTime, &categoryId, &articleType); err != nil {
+		if err := rows.Scan(&id, &title, &summary, &content, &insertTime, &categoryId, &articleType); err != nil {
 			panic(err)
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title,Summary:summary, Content: content, InsertTime: insertTime, CategoryId: categoryId, ArticleType: articleType})
+		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Content: content, InsertTime: insertTime, CategoryId: categoryId, ArticleType: articleType})
 	}
 	for _, v := range articles {
 		if v.ArticleType == 3 && !withLockedContext {
-			v.Content =nil
+			v.Content = ""
 		}
 	}
 	return articles
@@ -96,9 +96,9 @@ func UpdateCategory(name string, id, loginUserId int) superdb.DbTask {
 func SetLevelTwoPwd(oldPwd string, pwd string, userId int) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 		tx.Exec("update user set level2pwd=? where id=?", aesencryption.Encrypt(pwd, time.Now().String()), userId)
-		articles := GetArticles(3, userId, "",true)
+		articles := GetArticles(3, userId, "", true)
 		for _, v := range articles {
-			cPlain, err := aesencryption.Decrypt(oldPwd, *v.Content)
+			cPlain, err := aesencryption.Decrypt(oldPwd, v.Content)
 			if err != nil {
 				panic(err)
 			}
@@ -107,7 +107,7 @@ func SetLevelTwoPwd(oldPwd string, pwd string, userId int) superdb.DbTask {
 		}
 	}
 }
-func NewArticle(title string,summary string,html string, content string, userId int, articleType int, categoryId int, level2pwd string) {
+func NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, level2pwd string) {
 	if articleType == 3 {
 		user := GetUser(userId)
 		if user.Level2pwd == nil {
@@ -123,12 +123,12 @@ func NewArticle(title string,summary string,html string, content string, userId 
 
 	_, err := db.Exec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(
 	?,?,?,?,?,?,?,?,?,?,?
-	)`, title,summary,html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
+	)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
 	if err != nil {
 		panic(err)
 	}
 }
-func UpdateArticle(id int, title string,summary string,html string, content string, articleType int, categoryId, level2pwd string, userId int) {
+func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, level2pwd string, userId int) {
 	if articleType == 3 {
 		user := GetUser(userId)
 		if user.Level2pwd == nil {
@@ -143,7 +143,7 @@ func UpdateArticle(id int, title string,summary string,html string, content stri
 	} else if articleType != 1 && articleType != 2 {
 		panic(fmt.Sprintf("articleType %d is invalid", articleType))
 	}
-	_, err := db.Exec(`update article set title=?,summary=?,html=?,content=?,type=?,categoryId=?,updateTime=? where id=?`, title,summary,html, content, articleType, categoryId, time.Now(), id)
+	_, err := db.Exec(`update article set title=?,summary=?,html=?,content=?,type=?,categoryId=?,updateTime=? where id=?`, title, summary, html, content, articleType, categoryId, time.Now(), id)
 	if err != nil {
 		panic(err)
 	}
@@ -153,17 +153,17 @@ func GetArticle(id int) *ArticleDto {
 	r := db.QueryRow("select id,title,html,content,insertTime,type,categoryId,userId from article where id=?", id)
 	var (
 		title       string
-		html     *string
-		content     *string
+		html        string
+		content     string
 		insertTime  string
 		articleType int
 		categoryId  int
 		userId      int
 	)
-	if err := r.Scan(&id, &title,&html, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
+	if err := r.Scan(&id, &title, &html, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
 		return nil
 	}
-	return &ArticleDto{Title: title,Html:html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
+	return &ArticleDto{Title: title, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
 }
 
 func GetUser(userId int) *UserDto {
