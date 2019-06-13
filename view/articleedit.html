@@ -3,6 +3,15 @@
     {{$articleType:=.Article.ArticleType}}
     <link rel="stylesheet" type="text/css" href="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.css"
           media="screen">
+    <style>
+        .fa-header:before {
+            content: "\f1dc";
+        }
+
+        .fa-picture-o:before {
+            content: "\f03e";
+        }
+    </style>
     <div class="container">
         <form action="/articlesave" method="post">
             <input type="hidden" name="id" value="{{.Article.Id}}"/>
@@ -48,7 +57,7 @@
     <script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
     <script src="/static/showdown/showdown.min.js"></script>
     <script>
-        var simplemde = new SimpleMDE({element: $("#content")[0]});
+        var simplemde = new SimpleMDE({element: $("#content")[0], autoDownloadFontAwesome: false});
         app.ajaxSubmit($("form:last"), {
             before: function () {
                 var converter = new showdown.Converter(),

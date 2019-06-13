@@ -63,6 +63,7 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 	for _, v := range articles {
 		if v.ArticleType == 3 && !withLockedContext {
 			v.Content = ""
+			v.Summary = ""
 		}
 	}
 	return articles
@@ -161,14 +162,14 @@ func GetArticle(id int) *ArticleDto {
 	return &ArticleDto{Title: title, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
 }
 
-func ArticleDelete(id, loginUserId int)  superdb.DbTask  {
+func ArticleDelete(id, loginUserId int) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 
 		var article = GetArticle(id)
 		if article.UserId != loginUserId {
 			panic("no permission")
 		}
-		tx.MustExec("update article set isDeleted=1 where id=?",id)
+		tx.MustExec("update article set isDeleted=1 where id=?", id)
 	}
 }
 
