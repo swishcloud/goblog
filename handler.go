@@ -5,6 +5,7 @@ import (
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
+	"github.com/github-123456/gostudy/superdb"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
 	"net/http"
@@ -120,7 +121,7 @@ func UserArticle(context *goweb.Context) {
 	} else {
 		queryArticleType = 1
 	}
-	articles := dbservice.GetArticles(queryArticleType, user.Id, "")
+	articles := dbservice.GetArticles(queryArticleType, user.Id, "",false)
 	model := UserArticleModel{Articles: articles}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(user.UserName), model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
 }
@@ -140,7 +141,7 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	data := dbservice.GetArticles(1, 0, key)
+	data := dbservice.GetArticles(1, 0, key,false)
 	goweb.RenderPage(context, NewPageModel("GOBLOG", data), "view/layout.html", "view/articlelist.html")
 
 }
@@ -268,7 +269,7 @@ func ArticleLockPost(context *goweb.Context) {
 	}
 	c, err := aesencryption.Decrypt(pwd, article.Content)
 	if err != nil {
-		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id,Type:strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
+		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
 	}
 	article.Content = c;
@@ -339,7 +340,7 @@ func Register(context *goweb.Context) {
 func RegisterPost(context *goweb.Context) {
 	account := context.Request.PostForm.Get("account")
 	password := context.Request.PostForm.Get("password")
-	dbservice.NewUser(account, password)
+	superdb.ExecuteTransaction(db, dbservice.NewUser(account, password))
 	context.Success(nil)
 }
 func CategoryList(context *goweb.Context) {
@@ -379,10 +380,10 @@ func CategorySave(context *goweb.Context) {
 	name := context.Request.PostForm.Get("name")
 	id := context.Request.PostForm.Get("id")
 	if id == "" {
-		dbservice.NewCategory(nil,name, MustGetLoginUser(context).Id)
+		superdb.ExecuteTransaction(db, dbservice.NewCategory(name, MustGetLoginUser(context).Id))
 	} else {
 		intId, _ := strconv.Atoi(id)
-		dbservice.UpdateCategory(name, intId, MustGetLoginUser(context).Id)
+		superdb.ExecuteTransaction(db, dbservice.UpdateCategory(name, intId, MustGetLoginUser(context).Id))
 	}
 	context.Success(nil)
 }
@@ -455,7 +456,7 @@ func SetLevelTwoPwdPost(context *goweb.Context) {
 			return
 		}
 	}
-	dbservice.SetLevelTwoPwd(newPwd, user.Id)
+	superdb.ExecuteTransaction(db, dbservice.SetLevelTwoPwd(oldPwd, newPwd, user.Id))
 	context.Success(nil)
 }
 

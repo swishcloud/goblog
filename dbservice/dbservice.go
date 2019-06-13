@@ -1,11 +1,11 @@
 package dbservice
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/gostudy/aesencryption"
+	"github.com/github-123456/gostudy/superdb"
 	"strconv"
 	"time"
 )
@@ -24,7 +24,7 @@ func (err dbServiceError) Error() string {
 	return err.error
 }
 
-func GetArticles(articleType, userId int, key string) []*ArticleDto {
+func GetArticles(articleType, userId int, key string, withLockedContext bool) []*ArticleDto {
 	var typeWhere string
 	var userIdWhere string
 	if articleType == 0 {
@@ -60,7 +60,7 @@ func GetArticles(articleType, userId int, key string) []*ArticleDto {
 		articles = append(articles, &ArticleDto{Id: id, Title: title, Content: content, InsertTime: insertTime, CategoryId: categoryId, ArticleType: articleType})
 	}
 	for _, v := range articles {
-		if v.ArticleType == 3 {
+		if v.ArticleType == 3 && !withLockedContext {
 			v.Content = ""
 		}
 	}
@@ -86,17 +86,24 @@ func GetCategories(userId int) []CategoryDto {
 	return categoryList
 }
 
-func UpdateCategory(name string, id, loginUserId int) {
-	_, err := db.Exec(`update category set name=? where id=? and userId=?`, name, id, loginUserId)
-	if err != nil {
-		panic(err)
+func UpdateCategory(name string, id, loginUserId int) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		tx.Exec(`update category set name=? where id=? and userId=?`, name, id, loginUserId)
 	}
 }
 
-func SetLevelTwoPwd(pwd string, userId int) {
-	_, err := db.Exec("update user set level2pwd=? where id=?", aesencryption.Encrypt(pwd, time.Now().String()), userId)
-	if err != nil {
-		panic(err)
+func SetLevelTwoPwd(oldPwd string, pwd string, userId int) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		tx.Exec("update user set level2pwd=? where id=?", aesencryption.Encrypt(pwd, time.Now().String()), userId)
+		articles := GetArticles(3, userId, "",true)
+		for _, v := range articles {
+			cPlain, err := aesencryption.Decrypt(oldPwd, v.Content)
+			if err != nil {
+				panic(err)
+			}
+			cCipher := aesencryption.Encrypt(pwd, cPlain)
+			tx.Exec(`update article set content=?,updateTime=? where id=?`, cCipher, time.Now(), v.Id)
+		}
 	}
 }
 func NewArticle(title string, content string, userId int, articleType int, categoryId int, level2pwd string) {
@@ -170,41 +177,20 @@ func GetUser(userId int) *UserDto {
 	return &UserDto{Id: userId, UserName: userName, Level2pwd: level2pwd}
 }
 
-func NewCategory(tx *sql.Tx, name string, userId int) {
-	tx = CheckTx(tx)
-	_, err := tx.Exec(`insert into category (name,insertTime,isDeleted,userId)values(?,?,?,?)`, name, time.Now(), 0, userId)
-	if err != nil {
-		panic(err)
+func NewCategory(name string, userId int) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		tx.MustExec(`insert into category (name,insertTime,isDeleted,userId)values(?,?,?,?)`, name, time.Now(), 0, userId)
 	}
 }
 
-func NewUser(userName, password string) {
-	tx := CheckTx(nil)
-	r, err := tx.Exec(`insert into user (userName,password,insertTime,isDeleted,isBanned)values(
-	?,?,?,?,?
-	)`, userName, common.Md5Hash(password), time.Now(), 0, 0)
-	if err != nil {
-		panic(err)
-	}
-	lastId, err := r.LastInsertId()
-	if err != nil {
-		tx.Rollback()
-		panic(err)
-	}
-	intLastId := int(lastId)
-	NewCategory(tx, "默认分类", intLastId)
-	if err := tx.Commit(); err != nil {
-		panic(err)
-	}
-}
-
-func CheckTx(tx *sql.Tx) *sql.Tx {
-	if tx == nil {
-		newTx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: sql.LevelSerializable})
+func NewUser(userName, password string) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned)values(?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0)
+		lastId, err := r.LastInsertId()
 		if err != nil {
 			panic(err)
 		}
-		tx = newTx
+		intLastId := int(lastId)
+		NewCategory("默认分类", intLastId)(tx)
 	}
-	return tx
 }
