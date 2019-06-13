@@ -121,7 +121,7 @@ func UserArticle(context *goweb.Context) {
 	} else {
 		queryArticleType = 1
 	}
-	articles := dbservice.GetArticles(queryArticleType, user.Id, "",false)
+	articles := dbservice.GetArticles(queryArticleType, user.Id, "", false)
 	model := UserArticleModel{Articles: articles}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(user.UserName), model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
 }
@@ -141,7 +141,7 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	data := dbservice.GetArticles(1, 0, key,false)
+	data := dbservice.GetArticles(1, 0, key, false)
 	goweb.RenderPage(context, NewPageModel("GOBLOG", data), "view/layout.html", "view/articlelist.html")
 
 }
@@ -268,7 +268,7 @@ func ArticleLockPost(context *goweb.Context) {
 		return
 	}
 	c, err := aesencryption.Decrypt(pwd, article.Content)
-	if err != nil {
+	if err != nil || !common.Lev2PwdCheck(*dbservice.GetUser(article.UserId).Level2pwd, pwd) {
 		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
 	}
