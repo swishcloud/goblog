@@ -410,16 +410,7 @@ func CategoryDelete(context *goweb.Context) {
 func ArticleDelete(context *goweb.Context) {
 	id := context.Request.FormValue("id")
 	intId, _ := strconv.Atoi(id)
-	var article = dbservice.GetArticle(intId)
-	if article.UserId != MustGetLoginUser(context).Id {
-		context.Failed("no permission")
-		return
-	}
-	_, err := db.Exec(`delete from article where id=?`, id)
-	if err != nil {
-		context.Failed(err.Error())
-		return
-	}
+	superdb.ExecuteTransaction(db,dbservice.ArticleDelete(intId,MustGetLoginUser(context).Id))
 	context.Success(nil)
 }
 

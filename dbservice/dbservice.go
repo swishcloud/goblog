@@ -38,7 +38,7 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 	} else {
 		userIdWhere = " and userId=" + strconv.Itoa(userId)
 	}
-	rows, err := db.Query("select id,title,summary,content,insertTime,categoryId,type from article where title like ? "+typeWhere+userIdWhere+" and type!=4 order by updateTime desc", "%"+key+"%")
+	rows, err := db.Query("select id,title,summary,content,insertTime,categoryId,type from article where title like ? "+typeWhere+userIdWhere+" and type!=4 and isDeleted=0 and isBanned=0 order by updateTime desc", "%"+key+"%")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -159,6 +159,17 @@ func GetArticle(id int) *ArticleDto {
 		return nil
 	}
 	return &ArticleDto{Title: title, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
+}
+
+func ArticleDelete(id, loginUserId int)  superdb.DbTask  {
+	return func(tx *superdb.Tx) {
+
+		var article = GetArticle(id)
+		if article.UserId != loginUserId {
+			panic("no permission")
+		}
+		tx.MustExec("update article set isDeleted=1 where id=?",id)
+	}
 }
 
 func GetUser(userId int) *UserDto {
