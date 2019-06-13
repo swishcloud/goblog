@@ -207,9 +207,10 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd)
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd))
 	} else {
-		dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id)
+		rawArticle:=dbservice.GetArticle(intId)
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html,rawArticle.Content,rawArticle.UserId, 4, rawArticle.CategoryId, lev2pwd), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id))
 	}
 	context.Success(nil)
 }

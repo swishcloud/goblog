@@ -38,7 +38,7 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 	} else {
 		userIdWhere = " and userId=" + strconv.Itoa(userId)
 	}
-	rows, err := db.Query("select id,title,summary,content,insertTime,categoryId,type from article where title like ? "+typeWhere+userIdWhere+" order by updateTime desc", "%"+key+"%")
+	rows, err := db.Query("select id,title,summary,content,insertTime,categoryId,type from article where title like ? "+typeWhere+userIdWhere+" and type!=4 order by updateTime desc", "%"+key+"%")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -107,45 +107,40 @@ func SetLevelTwoPwd(oldPwd string, pwd string, userId int) superdb.DbTask {
 		}
 	}
 }
-func NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, level2pwd string) {
-	if articleType == 3 {
-		user := GetUser(userId)
-		if user.Level2pwd == nil {
-			//return dbServiceError{"您未设置二级密码"}
-			panic("您未设置二级密码")
+func NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, level2pwd string) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		if articleType == 3 {
+			user := GetUser(userId)
+			if user.Level2pwd == nil {
+				//return dbServiceError{"您未设置二级密码"}
+				panic("您未设置二级密码")
+			}
+			if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
+				//return dbServiceError{"二级密码错误"}
+				panic("二级密码错误")
+			}
+			content = aesencryption.Encrypt(level2pwd, content)
 		}
-		if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
-			//return dbServiceError{"二级密码错误"}
-			panic("二级密码错误")
-		}
-		content = aesencryption.Encrypt(level2pwd, content)
-	}
-
-	_, err := db.Exec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(
-	?,?,?,?,?,?,?,?,?,?,?
-	)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
-	if err != nil {
-		panic(err)
+		tx.MustExec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(?,?,?,?,?,?,?,?,?,?,?)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
 	}
 }
-func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, level2pwd string, userId int) {
-	if articleType == 3 {
-		user := GetUser(userId)
-		if user.Level2pwd == nil {
-			//return dbServiceError{"您未设置二级密码"}
-			panic("您未设置二级密码")
+func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, level2pwd string, userId int) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		if articleType == 3 {
+			user := GetUser(userId)
+			if user.Level2pwd == nil {
+				//return dbServiceError{"您未设置二级密码"}
+				panic("您未设置二级密码")
+			}
+			if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
+				//return dbServiceError{"二级密码错误"}
+				panic("二级密码错误")
+			}
+			content = aesencryption.Encrypt(level2pwd, content)
+		} else if articleType != 1 && articleType != 2 {
+			panic(fmt.Sprintf("articleType %d is invalid", articleType))
 		}
-		if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
-			//return dbServiceError{"二级密码错误"}
-			panic("二级密码错误")
-		}
-		content = aesencryption.Encrypt(level2pwd, content)
-	} else if articleType != 1 && articleType != 2 {
-		panic(fmt.Sprintf("articleType %d is invalid", articleType))
-	}
-	_, err := db.Exec(`update article set title=?,summary=?,html=?,content=?,type=?,categoryId=?,updateTime=? where id=?`, title, summary, html, content, articleType, categoryId, time.Now(), id)
-	if err != nil {
-		panic(err)
+		tx.MustExec(`update article set title=?,summary=?,html=?,content=?,type=?,categoryId=?,updateTime=? where id=?`, title, summary, html, content, articleType, categoryId, time.Now(), id)
 	}
 }
 
