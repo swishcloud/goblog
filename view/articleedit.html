@@ -1,9 +1,13 @@
 {{define "content" }}
     {{$categoryId:=.Article.CategoryId}}
     {{$articleType:=.Article.ArticleType}}
+    <link rel="stylesheet" type="text/css" href="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.css"
+          media="screen">
     <div class="container">
         <form action="/articlesave" method="post">
             <input type="hidden" name="id" value="{{.Article.Id}}"/>
+            <input type="hidden" name="summary" id="summary"/>
+            <input type="hidden" name="html" id="html"/>
             <div id="error"></div>
             <div class="form-group">
                 <label>标题</label>
@@ -12,7 +16,7 @@
             </div>
             <div class="form-group">
                 <label>正文</label>
-                <textarea class="form-control" name="content" rows="3" placeholder="正文内容..."
+                <textarea id="content" class="form-control" name="content" rows="3" placeholder="正文内容..."
                           required>{{.Article.Content}}</textarea>
             </div>
             <div class="form-group">
@@ -41,9 +45,17 @@
 {{end}}
 
 {{define "script"}}
+    <script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
+    <script src="/static/showdown/showdown.min.js"></script>
     <script>
+        var simplemde = new SimpleMDE({element: $("#content")[0]});
         app.ajaxSubmit($("form:last"), {
             before: function () {
+                var converter = new showdown.Converter(),
+                    html = converter.makeHtml(simplemde.value());
+                var summary = html.replace(/(<([^>]+)>)/ig, "");
+                $("#html").val(html)
+                $("#summary").val(summary)
                 app.closeError($('#error'))
             },
             success: function (res) {

@@ -7,7 +7,9 @@ type CategoryDto struct {
 type ArticleDto struct {
 	Id         int
 	Title      string
-	Content    string
+	Summary    *string
+	Html    *string
+	Content    *string
 	InsertTime string
 	ArticleType int
 	CategoryId int

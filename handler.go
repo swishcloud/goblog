@@ -8,6 +8,7 @@ import (
 	"github.com/github-123456/gostudy/superdb"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
+	"html/template"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -186,6 +187,11 @@ func ArticleSave(context *goweb.Context) {
 	categoryId := context.Request.PostForm.Get("categoryId")
 	articleType := context.Request.PostForm.Get("type")
 	lev2pwd := context.Request.PostForm.Get("lev2pwd")
+	html := context.Request.PostForm.Get("html")
+	summary := context.Request.PostForm.Get("summary")
+	if len(summary)>100{
+		summary=summary[:100]
+	}
 
 	intArticleType, err := strconv.Atoi(articleType)
 	if err != nil {
@@ -201,15 +207,16 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		dbservice.NewArticle(title, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd)
+		dbservice.NewArticle(title,summary,html,content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd)
 	} else {
-		dbservice.UpdateArticle(intId, title, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id)
+		dbservice.UpdateArticle(intId, title,summary,html, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id)
 	}
 	context.Success(nil)
 }
 
 type ArticleModel struct {
 	Article  *dbservice.ArticleDto
+	Html template.HTML
 	Readonly bool
 }
 
@@ -243,6 +250,7 @@ func Article(context *goweb.Context) {
 			model.Readonly = false
 		}
 	}
+	model.Html=	template.HTML(*model.Article.Html)
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
 }
 
@@ -267,12 +275,12 @@ func ArticleLockPost(context *goweb.Context) {
 		context.ShowErrorPage(http.StatusUnauthorized, "")
 		return
 	}
-	c, err := aesencryption.Decrypt(pwd, article.Content)
+	c, err := aesencryption.Decrypt(pwd, *article.Content)
 	if err != nil || !common.Lev2PwdCheck(*dbservice.GetUser(article.UserId).Level2pwd, pwd) {
 		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
 	}
-	article.Content = c;
+	article.Content = &c;
 	if t == 1 {
 		context.Data["article"] = article
 		ArticleEdit(context)
