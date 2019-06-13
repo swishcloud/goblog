@@ -9,6 +9,7 @@
     height: 100%;
     background: black;
     opacity: 0.1;
+    z-index:10000;
 }
 
 .box-one{
