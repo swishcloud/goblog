@@ -1,5 +1,5 @@
 {
-  "FileLocation": "/",
+  "FileLocation": "/workspace/goblog/file",
   "Host":"0.0.0.0:8080",
   "SqlDataSourceName":"allen:fjAlfa.fa131@tcp(192.168.100.4:3306)/goblog",
   "WebsiteName":"GOBLOG",

@@ -8,8 +8,11 @@ import (
 	"github.com/github-123456/gostudy/superdb"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"html/template"
+	"io"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -30,6 +33,7 @@ const (
 	PATH_CATEGORYDELETE = "/categorydelete"
 	PATH_SETLEVELTWOPWD = "/setlevel2pwd"
 	PATH_PROFILE        = "/profile"
+	PATH_UPLOAD         = "/upload"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
@@ -38,6 +42,9 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), UserArticle)
 	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
+	})
+	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
+		http.StripPrefix("/src/", http.FileServer(http.Dir(config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 	})
 	group.GET(PATH_ARTICLELIST, ArticleList)
 	group.GET(PATH_ARTICLEEDIT, ArticleEdit)
@@ -57,6 +64,7 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.GET(PATH_SETLEVELTWOPWD, SetLevelTwoPwd)
 	group.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
 	group.GET(PATH_PROFILE, Profile)
+	group.POST(PATH_UPLOAD, Upload)
 }
 
 type PageModel struct {
@@ -209,8 +217,8 @@ func ArticleSave(context *goweb.Context) {
 	if intId == 0 {
 		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd))
 	} else {
-		rawArticle:=dbservice.GetArticle(intId)
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html,rawArticle.Content,rawArticle.UserId, 4, rawArticle.CategoryId, lev2pwd), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id))
+		rawArticle := dbservice.GetArticle(intId)
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, lev2pwd), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id))
 	}
 	context.Success(nil)
 }
@@ -288,7 +296,7 @@ func ArticleLockPost(context *goweb.Context) {
 	} else if t == 2 {
 		model := ArticleModel{Article: article, Readonly: false}
 		html, _ := aesencryption.Decrypt(pwd, article.Html)
-		model.Html=template.HTML(html)
+		model.Html = template.HTML(html)
 		goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
 	}
 }
@@ -412,7 +420,7 @@ func CategoryDelete(context *goweb.Context) {
 func ArticleDelete(context *goweb.Context) {
 	id := context.Request.FormValue("id")
 	intId, _ := strconv.Atoi(id)
-	superdb.ExecuteTransaction(db,dbservice.ArticleDelete(intId,MustGetLoginUser(context).Id))
+	superdb.ExecuteTransaction(db, dbservice.ArticleDelete(intId, MustGetLoginUser(context).Id))
 	context.Success(nil)
 }
 
@@ -468,4 +476,29 @@ type ProfileModel struct {
 
 func Profile(context *goweb.Context) {
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("个人资料"), ProfileModel{Settings: GetSettingsModel(context.Request.URL.Path)}), "view/layout.html", "view/settingsLeftBar.html", "view/profile.html")
+}
+func Upload(context *goweb.Context) {
+	file, fileHeader, err := context.Request.FormFile("image")
+	if err != nil {
+		panic(err)
+	}
+	uuid:=uuid.New().String()+".png"
+	path := config.FileLocation + `/image/` +uuid
+	url:="/src/image/"+uuid
+	out, err := os.Create(path)
+	defer out.Close()
+	if err != nil {
+		panic(err)
+	}
+	io.Copy(out, file)
+	data := struct {
+		DownloadUrl string `json:"downloadUrl"`
+		Filename    string `json:"filename"`
+	}{DownloadUrl: url, Filename: fileHeader.Filename}
+	json, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	context.Writer.Header().Add("Content-Type", "application/json")
+	context.Writer.Write(json)
 }

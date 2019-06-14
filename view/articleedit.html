@@ -56,8 +56,20 @@
 {{define "script"}}
     <script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
     <script src="/static/showdown/showdown.min.js"></script>
+    <script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
+    <script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
     <script>
-        var simplemde = new SimpleMDE({element: $("#content")[0], autoDownloadFontAwesome: false});
+        var simplemde = new SimpleMDE({element: $("#content")[0], autoDownloadFontAwesome: false,promptURLs:true});
+        inlineAttachment.editors.codemirror4.attach(simplemde.codemirror,{
+            uploadUrl:"upload",
+            uploadMethod:"post",
+            jsonFieldName:"downloadUrl",
+            uploadFieldName:"image",
+            onFileUploadResponse:function (res) {
+                console.log(res)
+            },
+            urlText:"![image]({filename})"
+        });
         app.ajaxSubmit($("form:last"), {
             before: function () {
                 var converter = new showdown.Converter(),
