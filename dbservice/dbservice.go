@@ -38,7 +38,7 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 	} else {
 		userIdWhere = " and userId=" + strconv.Itoa(userId)
 	}
-	rows, err := db.Query("select id,title,summary,content,insertTime,categoryId,type from article where title like ? "+typeWhere+userIdWhere+" and type!=4 and isDeleted=0 and isBanned=0 order by updateTime desc", "%"+key+"%")
+	rows, err := db.Query("select id,title,summary,html,content,insertTime,categoryId,userId,type from article where title like ? "+typeWhere+userIdWhere+" and type!=4 and isDeleted=0 and isBanned=0 order by updateTime desc", "%"+key+"%")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -50,15 +50,17 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 			id          int
 			title       string
 			summary     string
+			html     string
 			content     string
 			insertTime  string
 			categoryId  int
+			userId  int
 			articleType int
 		)
-		if err := rows.Scan(&id, &title, &summary, &content, &insertTime, &categoryId, &articleType); err != nil {
+		if err := rows.Scan(&id, &title, &summary,&html, &content, &insertTime, &categoryId,&userId, &articleType); err != nil {
 			panic(err)
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Content: content, InsertTime: insertTime, CategoryId: categoryId, ArticleType: articleType})
+		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary,Html:html, Content: content, InsertTime: insertTime, CategoryId: categoryId,UserId:userId, ArticleType: articleType})
 	}
 	for _, v := range articles {
 		if v.ArticleType == 3 && !withLockedContext {
@@ -100,11 +102,15 @@ func SetLevelTwoPwd(oldPwd string, pwd string, userId int) superdb.DbTask {
 		articles := GetArticles(3, userId, "", true)
 		for _, v := range articles {
 			cPlain, err := aesencryption.Decrypt(oldPwd, v.Content)
+			hPlain, err := aesencryption.Decrypt(oldPwd, v.Html)
+			sPlain, err := aesencryption.Decrypt(oldPwd, v.Summary)
 			if err != nil {
 				panic(err)
 			}
 			cCipher := aesencryption.Encrypt(pwd, cPlain)
-			tx.Exec(`update article set content=?,updateTime=? where id=?`, cCipher, time.Now(), v.Id)
+			hCipher := aesencryption.Encrypt(pwd, hPlain)
+			sCipher := aesencryption.Encrypt(pwd, sPlain)
+			tx.Exec(`update article set content=?,html=?,summary=?, updateTime=? where id=?`, cCipher,hCipher,sCipher, time.Now(), v.Id)
 		}
 	}
 }
@@ -121,6 +127,8 @@ func NewArticle(title string, summary string, html string, content string, userI
 				panic("二级密码错误")
 			}
 			content = aesencryption.Encrypt(level2pwd, content)
+			summary = aesencryption.Encrypt(level2pwd, summary)
+			html = aesencryption.Encrypt(level2pwd, html)
 		}
 		tx.MustExec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(?,?,?,?,?,?,?,?,?,?,?)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
 	}
@@ -138,6 +146,8 @@ func UpdateArticle(id int, title string, summary string, html string, content st
 				panic("二级密码错误")
 			}
 			content = aesencryption.Encrypt(level2pwd, content)
+			summary = aesencryption.Encrypt(level2pwd, summary)
+			html = aesencryption.Encrypt(level2pwd, html)
 		} else if articleType != 1 && articleType != 2 {
 			panic(fmt.Sprintf("articleType %d is invalid", articleType))
 		}
@@ -146,9 +156,10 @@ func UpdateArticle(id int, title string, summary string, html string, content st
 }
 
 func GetArticle(id int) *ArticleDto {
-	r := db.QueryRow("select id,title,html,content,insertTime,type,categoryId,userId from article where id=?", id)
+	r := db.QueryRow("select id,title,summary,html,content,insertTime,type,categoryId,userId from article where id=?", id)
 	var (
 		title       string
+		summary     string
 		html        string
 		content     string
 		insertTime  string
@@ -156,10 +167,10 @@ func GetArticle(id int) *ArticleDto {
 		categoryId  int
 		userId      int
 	)
-	if err := r.Scan(&id, &title, &html, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
+	if err := r.Scan(&id, &title,&summary, &html, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
 		return nil
 	}
-	return &ArticleDto{Title: title, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
+	return &ArticleDto{Title: title,Summary:summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
 }
 
 func ArticleDelete(id, loginUserId int) superdb.DbTask {

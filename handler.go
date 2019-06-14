@@ -34,7 +34,7 @@ const (
 
 func BindHandlers(group *goweb.RouterGroup) {
 	group.GET("/", ArticleList)
-	group.RegexMatch(regexp.MustCompile(`^/article_\d+\.html$`), Article)
+	group.RegexMatch(regexp.MustCompile(`^/u/\d+/post/\d+$`), Article)
 	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), UserArticle)
 	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
@@ -222,7 +222,7 @@ type ArticleModel struct {
 }
 
 func Article(context *goweb.Context) {
-	re := regexp.MustCompile(`\d+`)
+	re := regexp.MustCompile(`\d+$`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
 	article := dbservice.GetArticle(id)
 	if article == nil {
@@ -287,6 +287,8 @@ func ArticleLockPost(context *goweb.Context) {
 		ArticleEdit(context)
 	} else if t == 2 {
 		model := ArticleModel{Article: article, Readonly: false}
+		html, _ := aesencryption.Decrypt(pwd, article.Html)
+		model.Html=template.HTML(html)
 		goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
 	}
 }
