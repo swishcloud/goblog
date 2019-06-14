@@ -197,8 +197,8 @@ func ArticleSave(context *goweb.Context) {
 	lev2pwd := context.Request.PostForm.Get("lev2pwd")
 	html := context.Request.PostForm.Get("html")
 	summary := context.Request.PostForm.Get("summary")
-	if len(summary) > 100 {
-		summary = summary[:100]
+	if len(summary) > 98 {
+		summary = summary[:98]
 	}
 
 	intArticleType, err := strconv.Atoi(articleType)

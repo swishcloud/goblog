@@ -55,15 +55,14 @@
 
 {{define "script"}}
     <script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
-    <script src="/static/showdown/showdown.min.js"></script>
+    <script src="/static/js/marked.min.js"></script>
     <script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
     <script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
     <script>
-        var converter = new showdown.Converter()
         var simplemde = new SimpleMDE({
             element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,
             previewRender: function (plainText) {
-                return converter.makeHtml(plainText); // Returns HTML from a custom parser
+                return marked(plainText,{ breaks: true }); // Returns HTML from a custom parser
             }
         });
         inlineAttachment.editors.codemirror4.attach(simplemde.codemirror, {
@@ -78,7 +77,7 @@
         });
         app.ajaxSubmit($("form:last"), {
             before: function () {
-                var html = converter.makeHtml(simplemde.value());
+                var html = marked(simplemde.value(),{ breaks: true });
                 var summary = html.replace(/(<([^>]+)>)/ig, "");
                 $("#html").val(html)
                 $("#summary").val(summary)
