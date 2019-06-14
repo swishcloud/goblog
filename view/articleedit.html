@@ -59,21 +59,26 @@
     <script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
     <script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
     <script>
-        var simplemde = new SimpleMDE({element: $("#content")[0], autoDownloadFontAwesome: false,promptURLs:true});
-        inlineAttachment.editors.codemirror4.attach(simplemde.codemirror,{
-            uploadUrl:"upload",
-            uploadMethod:"post",
-            jsonFieldName:"downloadUrl",
-            uploadFieldName:"image",
-            onFileUploadResponse:function (res) {
+        var converter = new showdown.Converter()
+        var simplemde = new SimpleMDE({
+            element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,
+            previewRender: function (plainText) {
+                return converter.makeHtml(plainText); // Returns HTML from a custom parser
+            }
+        });
+        inlineAttachment.editors.codemirror4.attach(simplemde.codemirror, {
+            uploadUrl: "upload",
+            uploadMethod: "post",
+            jsonFieldName: "downloadUrl",
+            uploadFieldName: "image",
+            onFileUploadResponse: function (res) {
                 console.log(res)
             },
-            urlText:"![image]({filename})"
+            urlText: "![image]({filename})"
         });
         app.ajaxSubmit($("form:last"), {
             before: function () {
-                var converter = new showdown.Converter(),
-                    html = converter.makeHtml(simplemde.value());
+                var html = converter.makeHtml(simplemde.value());
                 var summary = html.replace(/(<([^>]+)>)/ig, "");
                 $("#html").val(html)
                 $("#summary").val(summary)
