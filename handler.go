@@ -197,8 +197,10 @@ func ArticleSave(context *goweb.Context) {
 	lev2pwd := context.Request.PostForm.Get("lev2pwd")
 	html := context.Request.PostForm.Get("html")
 	summary := context.Request.PostForm.Get("summary")
-	if len(summary) > 98 {
-		summary = summary[:98]
+	summaryRunes := []rune(summary)
+	if len(summaryRunes) > 200 {
+		summaryRunes = summaryRunes[:200]
+		summary = string(summaryRunes)
 	}
 
 	intArticleType, err := strconv.Atoi(articleType)
@@ -482,9 +484,9 @@ func Upload(context *goweb.Context) {
 	if err != nil {
 		panic(err)
 	}
-	uuid:=uuid.New().String()+".png"
-	path := config.FileLocation + `/image/` +uuid
-	url:="/src/image/"+uuid
+	uuid := uuid.New().String() + ".png"
+	path := config.FileLocation + `/image/` + uuid
+	url := "/src/image/" + uuid
 	out, err := os.Create(path)
 	defer out.Close()
 	if err != nil {
