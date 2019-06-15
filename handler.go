@@ -194,7 +194,6 @@ func ArticleSave(context *goweb.Context) {
 	content := context.Request.PostForm.Get("content")
 	categoryId := context.Request.PostForm.Get("categoryId")
 	articleType := context.Request.PostForm.Get("type")
-	lev2pwd := context.Request.PostForm.Get("lev2pwd")
 	html := context.Request.PostForm.Get("html")
 	summary := context.Request.PostForm.Get("summary")
 	summaryRunes := []rune(summary)
@@ -217,10 +216,10 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, lev2pwd))
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId,config.PostKey))
 	} else {
 		rawArticle := dbservice.GetArticle(intId)
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, lev2pwd), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, lev2pwd, MustGetLoginUser(context).Id))
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId,config.PostKey), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId,config.PostKey, MustGetLoginUser(context).Id))
 	}
 	context.Success(nil)
 }
@@ -286,10 +285,13 @@ func ArticleLockPost(context *goweb.Context) {
 		context.ShowErrorPage(http.StatusUnauthorized, "")
 		return
 	}
-	c, err := aesencryption.Decrypt(pwd, article.Content)
-	if err != nil || !common.Lev2PwdCheck(*dbservice.GetUser(article.UserId).Level2pwd, pwd) {
+	if  !common.Md5Check(*dbservice.GetUser(article.UserId).Level2pwd, pwd){
 		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
+	}
+	c, err := aesencryption.Decrypt([]byte(config.PostKey), article.Content)
+	if err != nil {
+		panic(err)
 	}
 	article.Content = c;
 	if t == 1 {
@@ -297,7 +299,7 @@ func ArticleLockPost(context *goweb.Context) {
 		ArticleEdit(context)
 	} else if t == 2 {
 		model := ArticleModel{Article: article, Readonly: false}
-		html, _ := aesencryption.Decrypt(pwd, article.Html)
+		html, _ := aesencryption.Decrypt([]byte(config.PostKey), article.Html)
 		model.Html = template.HTML(html)
 		goweb.RenderPage(context, NewPageModel(GetPageTitle(article.Title), model), "view/layout.html", "view/article.html")
 	}
@@ -324,7 +326,7 @@ func LoginPost(context *goweb.Context) {
 		return
 	}
 
-	if !common.PwdCheck(r_password, password) {
+	if !common.Md5Check(r_password, password) {
 		context.Failed("账号或密码错误")
 		return
 	}
@@ -335,7 +337,7 @@ func LoginPost(context *goweb.Context) {
 	}
 	userJsonText := string(jsonB)
 
-	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt(config.Key, userJsonText), Path: "/"}
+	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt([]byte(config.Key), userJsonText), Path: "/"}
 	http.SetCookie(context.Writer, &cookie)
 
 	context.Success(nil)
@@ -463,12 +465,12 @@ func SetLevelTwoPwdPost(context *goweb.Context) {
 	newPwd := context.Request.PostForm.Get("newPwd")
 	user := dbservice.GetUser(MustGetLoginUser(context).Id)
 	if user.Level2pwd != nil {
-		if !common.Lev2PwdCheck(*user.Level2pwd, oldPwd) {
+		if !common.Md5Check(*user.Level2pwd, oldPwd) {
 			context.Failed("旧密码有误")
 			return
 		}
 	}
-	superdb.ExecuteTransaction(db, dbservice.SetLevelTwoPwd(oldPwd, newPwd, user.Id))
+	superdb.ExecuteTransaction(db, dbservice.SetLevelTwoPwd(user.Id,newPwd))
 	context.Success(nil)
 }
 

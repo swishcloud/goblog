@@ -1,7 +1,6 @@
 {{define "right"}}
     <form action="/setlevel2pwd" method="post">
         <div id="error"></div>
-        <span class="text-danger">注意：二级密码若忘记无法找回或重置</span>
         {{if eq .ExistLevel2Pwd true}}
             <div class="form-group mt-2">
                 <label>现在的二级密码</label>

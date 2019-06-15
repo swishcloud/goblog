@@ -50,17 +50,17 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 			id          int
 			title       string
 			summary     string
-			html     string
+			html        string
 			content     string
 			insertTime  string
 			categoryId  int
-			userId  int
+			userId      int
 			articleType int
 		)
-		if err := rows.Scan(&id, &title, &summary,&html, &content, &insertTime, &categoryId,&userId, &articleType); err != nil {
+		if err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType); err != nil {
 			panic(err)
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary,Html:html, Content: content, InsertTime: insertTime, CategoryId: categoryId,UserId:userId, ArticleType: articleType})
+		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType})
 	}
 	for _, v := range articles {
 		if v.ArticleType == 3 && !withLockedContext {
@@ -96,58 +96,35 @@ func UpdateCategory(name string, id, loginUserId int) superdb.DbTask {
 	}
 }
 
-func SetLevelTwoPwd(oldPwd string, pwd string, userId int) superdb.DbTask {
+func SetLevelTwoPwd(userId int, pwd string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-		tx.Exec("update user set level2pwd=? where id=?", aesencryption.Encrypt(pwd, time.Now().String()), userId)
-		articles := GetArticles(3, userId, "", true)
-		for _, v := range articles {
-			cPlain, err := aesencryption.Decrypt(oldPwd, v.Content)
-			hPlain, err := aesencryption.Decrypt(oldPwd, v.Html)
-			sPlain, err := aesencryption.Decrypt(oldPwd, v.Summary)
-			if err != nil {
-				panic(err)
-			}
-			cCipher := aesencryption.Encrypt(pwd, cPlain)
-			hCipher := aesencryption.Encrypt(pwd, hPlain)
-			sCipher := aesencryption.Encrypt(pwd, sPlain)
-			tx.Exec(`update article set content=?,html=?,summary=?, updateTime=? where id=?`, cCipher,hCipher,sCipher, time.Now(), v.Id)
-		}
+		tx.Exec("update user set level2pwd=? where id=?", common.Md5Hash(pwd), userId)
 	}
 }
-func NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, level2pwd string) superdb.DbTask {
+func NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 		if articleType == 3 {
 			user := GetUser(userId)
 			if user.Level2pwd == nil {
-				//return dbServiceError{"您未设置二级密码"}
 				panic("您未设置二级密码")
 			}
-			if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
-				//return dbServiceError{"二级密码错误"}
-				panic("二级密码错误")
-			}
-			content = aesencryption.Encrypt(level2pwd, content)
-			summary = aesencryption.Encrypt(level2pwd, summary)
-			html = aesencryption.Encrypt(level2pwd, html)
+			content = aesencryption.Encrypt([]byte(key), content)
+			summary = aesencryption.Encrypt([]byte(key), summary)
+			html = aesencryption.Encrypt([]byte(key), html)
 		}
 		tx.MustExec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(?,?,?,?,?,?,?,?,?,?,?)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
 	}
 }
-func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, level2pwd string, userId int) superdb.DbTask {
+func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 		if articleType == 3 {
 			user := GetUser(userId)
 			if user.Level2pwd == nil {
-				//return dbServiceError{"您未设置二级密码"}
 				panic("您未设置二级密码")
 			}
-			if !common.Lev2PwdCheck(*user.Level2pwd, level2pwd) {
-				//return dbServiceError{"二级密码错误"}
-				panic("二级密码错误")
-			}
-			content = aesencryption.Encrypt(level2pwd, content)
-			summary = aesencryption.Encrypt(level2pwd, summary)
-			html = aesencryption.Encrypt(level2pwd, html)
+			content = aesencryption.Encrypt([]byte(key), content)
+			summary = aesencryption.Encrypt([]byte(key), summary)
+			html = aesencryption.Encrypt([]byte(key), html)
 		} else if articleType != 1 && articleType != 2 {
 			panic(fmt.Sprintf("articleType %d is invalid", articleType))
 		}
@@ -167,10 +144,10 @@ func GetArticle(id int) *ArticleDto {
 		categoryId  int
 		userId      int
 	)
-	if err := r.Scan(&id, &title,&summary, &html, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
+	if err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &categoryId, &userId); err != nil {
 		return nil
 	}
-	return &ArticleDto{Title: title,Summary:summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
+	return &ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId}
 }
 
 func ArticleDelete(id, loginUserId int) superdb.DbTask {

@@ -44,10 +44,6 @@
                     <option value="3" {{if eq $articleType 3}}selected{{end}}>加密</option>
                 </select>
             </div>
-            <div class="form-group  {{if ne $articleType 3}}d-none{{end}}" id="pwdDiv">
-                <label>二级密码</label>
-                <input type="password" class="form-control col-lg-2" name="lev2pwd" placeholder="二级密码" required>
-            </div>
             <button type="submit" class="btn btn-primary">发布</button>
         </form>
     </div>
@@ -89,14 +85,6 @@
                 } else {
                     window.location.href = "/articlelist"
                 }
-            }
-        })
-        $("#type").change(function () {
-            val = $(this).val()
-            if (val == 3) {
-                $("#pwdDiv").removeClass("d-none")
-            } else {
-                $("#pwdDiv").addClass("d-none")
             }
         })
     </script>
