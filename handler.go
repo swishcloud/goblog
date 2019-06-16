@@ -74,6 +74,8 @@ type PageModel struct {
 	Request        *http.Request
 	WebSiteName    string
 	PageTitle      string
+	Keywords       string
+	Description    string
 	Data           interface{}
 	Duration       int
 	LastUpdateTime time.Time
@@ -151,7 +153,7 @@ func ArticleList(context *goweb.Context) {
 		key = ""
 	}
 	data := dbservice.GetArticles(1, 0, key, false)
-	goweb.RenderPage(context, NewPageModel("GOBLOG", data), "view/layout.html", "view/articlelist.html")
+	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", data), "view/layout.html", "view/articlelist.html")
 
 }
 
