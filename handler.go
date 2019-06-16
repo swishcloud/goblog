@@ -194,7 +194,7 @@ func ArticleSave(context *goweb.Context) {
 	content := context.Request.PostForm.Get("content")
 	categoryId := context.Request.PostForm.Get("categoryId")
 	articleType := context.Request.PostForm.Get("type")
-	html := context.Request.PostForm.Get("html")
+	html := goweb.SanitizeHtml(context.Request.PostForm.Get("html"))
 	summary := context.Request.PostForm.Get("summary")
 	summaryRunes := []rune(summary)
 	if len(summaryRunes) > 200 {
@@ -216,10 +216,10 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId,config.PostKey))
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey))
 	} else {
 		rawArticle := dbservice.GetArticle(intId)
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId,config.PostKey), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId,config.PostKey, MustGetLoginUser(context).Id))
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, config.PostKey), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id))
 	}
 	context.Success(nil)
 }
@@ -285,7 +285,7 @@ func ArticleLockPost(context *goweb.Context) {
 		context.ShowErrorPage(http.StatusUnauthorized, "")
 		return
 	}
-	if  !common.Md5Check(*dbservice.GetUser(article.UserId).Level2pwd, pwd){
+	if !common.Md5Check(*dbservice.GetUser(article.UserId).Level2pwd, pwd) {
 		goweb.RenderPage(context, NewPageModel(GetPageTitle("lock"), ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
 	}
@@ -470,7 +470,7 @@ func SetLevelTwoPwdPost(context *goweb.Context) {
 			return
 		}
 	}
-	superdb.ExecuteTransaction(db, dbservice.SetLevelTwoPwd(user.Id,newPwd))
+	superdb.ExecuteTransaction(db, dbservice.SetLevelTwoPwd(user.Id, newPwd))
 	context.Success(nil)
 }
 

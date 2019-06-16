@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 )
+
 func Md5Check(hashedStr string, plain string) bool {
 	return Md5Hash(plain) == hashedStr
 }
