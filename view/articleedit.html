@@ -11,6 +11,11 @@
         .fa-picture-o:before {
             content: "\f03e";
         }
+        .span-tip{
+            color:#9fa3b0;
+            line-height: 20px;
+            font-size: 12px;
+        }
     </style>
     <div class="container">
         <form action="/articlesave" method="post">
@@ -27,6 +32,7 @@
                 <label>正文</label>
                 <textarea id="content" class="form-control" name="content" rows="3" placeholder="正文内容..."
                           required>{{.Article.Content}}</textarea>
+                <span class="span-tip">支持粘贴图片或拖放图片文件</span>
             </div>
             <div class="form-group">
                 <label>分类</label>
