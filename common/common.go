@@ -13,3 +13,11 @@ func Md5Hash(plain string) string {
 	b := md5.Sum(sb)
 	return hex.EncodeToString(b[:])
 }
+
+type Error struct{
+	 Err string
+}
+
+func (e Error) Error()string{
+	return e.Err
+}

@@ -191,3 +191,63 @@ func NewUser(userName, password string) superdb.DbTask {
 		NewCategory("默认分类", intLastId)(tx)
 	}
 }
+
+func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (int, error) {
+	var (
+		id                int
+		password          string
+		userName          string
+		accessFailedCount int
+		lockoutEnd        *string
+	)
+	r := db.QueryRow("select id,userName, password,accessFailedCount,lockoutEnd from user where userName=?", account)
+	err := r.Scan(&id, &userName, &password, &accessFailedCount, &lockoutEnd)
+	if err != nil {
+		return id, common.Error{fmt.Sprintf("账号不存在")}
+	}
+	if lockoutEnd != nil {
+		lockoutEndTime, err := time.Parse("2006-01-02 15:04:05", *lockoutEnd)
+		if err != nil {
+			return id, err
+		}
+		fmt.Println(lockoutEndTime.UTC(),time.Now().UTC())
+		if lockoutEndTime.UTC().Before(time.Now().UTC()) {
+			UnlockUser(id)
+		} else {
+			return id, common.Error{"您的账号已被锁定"}
+		}
+	}
+	if !common.Md5Check(password, pwd) {
+		failedCount := accessFailedCount + 1
+		db.Exec("update user set accessFailedCount=? where userName=?", failedCount, account)
+		if remainC := maxAllowAccessFaildCount - failedCount; remainC > 0 {
+			return id, common.Error{fmt.Sprintf("密码错误，您还有%d次重试机会", remainC)}
+		} else {
+			LockUser(id)
+			ResetAccessFailedCount(id)
+			return id, common.Error{"您的账号已被锁定"}
+		}
+	}
+	ResetAccessFailedCount(id)
+	return id, nil
+}
+
+func LockUser(id int) {
+	_,err:=db.Exec("update user set lockoutEnd=? where id=?", time.Now().Add(time.Minute*20), id)
+	if err!=nil{
+		panic(err)
+	}
+}
+func UnlockUser(id int) {
+	_,err:=db.Exec("update user set lockoutEnd=null where id=?", id)
+	if err!=nil{
+		panic(err)
+	}
+}
+
+func ResetAccessFailedCount(id int) {
+	_,err:=db.Exec("update user set accessFailedCount=0  where id=?",  id)
+	if err!=nil{
+		panic(err)
+	}
+}

@@ -316,23 +316,13 @@ func LoginPost(context *goweb.Context) {
 	account := context.Request.PostForm.Get("account")
 	password := context.Request.PostForm.Get("password")
 
-	var (
-		r_id       int
-		r_password string
-		r_userName string
-	)
-	r := db.QueryRow("select id,userName, password from user where userName=?", account)
-	err := r.Scan(&r_id, &r_userName, &r_password)
-	if err != nil {
-		context.Failed("账号或密码错误")
+	id,err:=dbservice.CheckUser(account,password,5)
+	if err!=nil{
+		context.Failed(err.Error())
 		return
 	}
 
-	if !common.Md5Check(r_password, password) {
-		context.Failed("账号或密码错误")
-		return
-	}
-	jsonB, err := json.Marshal(User{Id: r_id, UserName: r_userName})
+	jsonB, err := json.Marshal(User{Id: id, UserName: account})
 	if err != nil {
 		context.Failed(err.Error())
 		return
