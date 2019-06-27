@@ -412,13 +412,12 @@ func CategorySave(context *goweb.Context) {
 	context.Success(nil)
 }
 func CategoryDelete(context *goweb.Context) {
-	//todo check that articles exists
 	id := context.Request.FormValue("id")
-	_, err := db.Exec(`delete from category where id=?`, id)
-	if err != nil {
-		context.Failed(err.Error())
-		return
+	intId,err:=strconv.Atoi(id)
+	if err!=nil{
+		panic(err)
 	}
+	superdb.ExecuteTransaction(db,dbservice.CategoryDelete(intId))
 	context.Success(nil)
 }
 

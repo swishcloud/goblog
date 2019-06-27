@@ -16,6 +16,7 @@
         $(".delcategory").click(function () {
             var id = $(this).parents("li").data("id")
             if (confirm("确定要删除吗?")) {
+                app.closeError($('#error'))
                 $.post("/categorydelete",{id:id}, function (res) {
                     if (res.error) {
                         app.showError($('#error'), res.error)

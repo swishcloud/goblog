@@ -40,38 +40,38 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool, ca
 	}
 	var rows *sql.Rows
 	if categoryName == "" {
-		r, err := db.Query("select a.id,a.title,a.summary,a.html,a.content,a.insertTime,a.categoryId,a.userId,a.type,b.name as categoryName from article as a join category as b on a.categoryId=b.id where title like ? "+typeWhere+userIdWhere+" and type!=4 and a.isDeleted=0 and isBanned=0 order by a.updateTime desc",  "%"+key+"%")
+		r, err := db.Query("select a.id,a.title,a.summary,a.html,a.content,a.insertTime,a.categoryId,a.userId,a.type,b.name as categoryName from article as a join category as b on a.categoryId=b.id where title like ? "+typeWhere+userIdWhere+" and type!=4 and a.isDeleted=0 and isBanned=0 order by a.updateTime desc", "%"+key+"%")
 		if err != nil {
 			panic(err.Error())
 		}
-		rows=r
+		rows = r
 	} else {
 		r, err := db.Query("select a.id,a.title,a.summary,a.html,a.content,a.insertTime,a.categoryId,a.userId,a.type,b.name as categoryName from article as a join category as b on a.categoryId=b.id where b.name=? and title like ? "+typeWhere+userIdWhere+" and type!=4 and a.isDeleted=0 and isBanned=0 order by  a.updateTime desc", categoryName, "%"+key+"%")
 		if err != nil {
 			panic(err.Error())
 		}
-		rows=r
+		rows = r
 	}
 	defer rows.Close()
 
 	var articles []*ArticleDto
 	for rows.Next() {
 		var (
-			id          int
-			title       string
-			summary     string
-			html        string
-			content     string
-			insertTime  string
-			categoryId  int
-			userId      int
-			articleType int
+			id           int
+			title        string
+			summary      string
+			html         string
+			content      string
+			insertTime   string
+			categoryId   int
+			userId       int
+			articleType  int
 			categoryName string
 		)
-		if err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType,&categoryName); err != nil {
+		if err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType, &categoryName); err != nil {
 			panic(err)
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType,CategoryName: categoryName})
+		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType, CategoryName: categoryName})
 	}
 	for _, v := range articles {
 		if v.ArticleType == 3 && !withLockedContext {
@@ -82,20 +82,20 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool, ca
 	return articles
 }
 
-func GetCategories(userId int,t int) []CategoryDto {
+func GetCategories(userId int, t int) []CategoryDto {
 	var rows *sql.Rows
-	if t==1{
+	if t == 1 {
 		r, err := db.Query("select a.id,a.name  from category where id in( select a.id from category as a join article as b on a.id=b.categoryId  where b.type=1 and a.isdeleted=0 and a.userId=? order by name group by a.id ) ", userId)
 		if err != nil {
 			panic(err)
 		}
-		rows=r
-	}else{
+		rows = r
+	} else {
 		r, err := db.Query("select id,name from category where isdeleted=0 and userId=? order by name", userId)
 		if err != nil {
 			panic(err)
 		}
-		rows=r
+		rows = r
 
 	}
 	var categoryList []CategoryDto
@@ -111,7 +111,16 @@ func GetCategories(userId int,t int) []CategoryDto {
 	}
 	return categoryList
 }
-
+func CategoryDelete(categoryId int) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		var temp int
+		err := tx.MustQueryRow("select id from article where categoryId=?", categoryId).Scan(&temp)
+		if err == nil {
+			panic("该分类下面有文章不能删除")
+		}
+		tx.MustExec(`delete from category where id=?`, categoryId)
+	}
+}
 func UpdateCategory(name string, id, loginUserId int) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 		tx.Exec(`update category set name=? where id=? and userId=?`, name, id, loginUserId)
