@@ -11,8 +11,9 @@
         .fa-picture-o:before {
             content: "\f03e";
         }
-        .span-tip{
-            color:#9fa3b0;
+
+        .span-tip {
+            color: #9fa3b0;
             line-height: 20px;
             font-size: 12px;
         }
@@ -89,9 +90,12 @@
                 if (res.error) {
                     app.showError($('#error'), res.error)
                 } else {
-                    window.location.href = "/articlelist"
+                    window.location.href = "/u/{{.UserId}}/post/" + res.data
                 }
             }
         })
+        window.onbeforeunload = function() {
+            return false
+        }
     </script>
 {{end}}

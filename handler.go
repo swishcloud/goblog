@@ -169,6 +169,7 @@ func ArticleList(context *goweb.Context) {
 type ArticleEditModel struct {
 	CategoryList []dbservice.CategoryDto
 	Article      dbservice.ArticleDto
+	UserId int
 }
 
 func ArticleEdit(context *goweb.Context) {
@@ -177,7 +178,7 @@ func ArticleEdit(context *goweb.Context) {
 		return
 	}
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id,0)
-	model := ArticleEditModel{CategoryList: categoryList}
+	model := ArticleEditModel{CategoryList: categoryList,UserId:MustGetLoginUser(context).Id}
 	if article, ok := context.Data["article"].(*dbservice.ArticleDto); ok {
 		model.Article = *article
 	} else {
@@ -227,12 +228,13 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey))
+		newArticleLastInsertId:=superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey))["NewArticleLastInsertId"].(int)
+		intId=newArticleLastInsertId
 	} else {
 		rawArticle := dbservice.GetArticle(intId)
 		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, config.PostKey), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id))
 	}
-	context.Success(nil)
+	context.Success(intId)
 }
 
 type ArticleModel struct {

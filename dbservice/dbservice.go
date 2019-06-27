@@ -113,12 +113,12 @@ func GetCategories(userId int, t int) []CategoryDto {
 }
 func CategoryDelete(categoryId int) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-		var temp int
-		err := tx.MustQueryRow("select id from article where categoryId=?", categoryId).Scan(&temp)
-		if err == nil {
+		var id int
+		err := tx.MustQueryRow("select id from article where categoryId=?", categoryId).Scan(&id)
+		if err != nil {
 			panic("该分类下面有文章不能删除")
 		}
-		tx.MustExec(`delete from category where id=?`, categoryId)
+		tx.Exec(`delete from category where id=?`, id)
 	}
 }
 func UpdateCategory(name string, id, loginUserId int) superdb.DbTask {
@@ -143,7 +143,11 @@ func NewArticle(title string, summary string, html string, content string, userI
 			summary = aesencryption.Encrypt([]byte(key), summary)
 			html = aesencryption.Encrypt([]byte(key), html)
 		}
-		tx.MustExec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(?,?,?,?,?,?,?,?,?,?,?)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId)
+		id,err:=tx.MustExec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId)values(?,?,?,?,?,?,?,?,?,?,?)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId).LastInsertId()
+		if err!=nil{
+			panic(err)
+		}
+		tx.SetValue("NewArticleLastInsertId",id)
 	}
 }
 func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int) superdb.DbTask {
