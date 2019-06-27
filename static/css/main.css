@@ -29,3 +29,44 @@ ul {
 .page-content{
     margin-top:70px;
 }
+
+.col-left {
+    margin-right: 20px;
+    overflow: hidden;
+}
+
+.col-right {
+    width: 300px;
+}
+
+@media (min-width: 992px) {
+    .col-left {
+        width: 610px;
+    }
+
+    .col-right {
+    }
+
+    .main {
+    }
+}
+
+@media (min-width: 1200px) {
+    .col-left {
+        width: 790px;
+    }
+
+    .col-right {
+    }
+}
+
+@media (max-width: 991px) {
+    .col-left {
+        margin-right: 0;
+        width: 100%;
+    }
+
+    .col-right {
+        display: none;
+    }
+}

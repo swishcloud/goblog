@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
@@ -119,9 +120,16 @@ func Authorize(w http.ResponseWriter, req *http.Request) bool {
 
 type UserArticleModel struct {
 	Articles []*dbservice.ArticleDto
+	Categories []dbservice.CategoryDto
+	UserId int
+}
+
+func (m UserArticleModel) GetCategoryUrl(name string)string{
+return fmt.Sprintf("/user/%d/article?category=%s",m.UserId,name)
 }
 
 func UserArticle(context *goweb.Context) {
+	category:=context.Request.URL.Query().Get("category")
 	re := regexp.MustCompile(`\d+`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
 	user := dbservice.GetUser(id)
@@ -132,8 +140,9 @@ func UserArticle(context *goweb.Context) {
 	} else {
 		queryArticleType = 1
 	}
-	articles := dbservice.GetArticles(queryArticleType, user.Id, "", false)
-	model := UserArticleModel{Articles: articles}
+	articles := dbservice.GetArticles(queryArticleType, user.Id, "", false,category)
+	categories:=dbservice.GetCategories(user.Id,queryArticleType)
+	model := UserArticleModel{Articles: articles,Categories:categories,UserId:user.Id}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(user.UserName), model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
 }
 
@@ -152,7 +161,7 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	data := dbservice.GetArticles(1, 0, key, false)
+	data := dbservice.GetArticles(1, 0, key, false,"")
 	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", data), "view/layout.html", "view/articlelist.html")
 
 }
@@ -167,7 +176,7 @@ func ArticleEdit(context *goweb.Context) {
 		http.Redirect(context.Writer, context.Request, PATH_LOGIN+"?redirectUri="+context.Request.RequestURI, 302)
 		return
 	}
-	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
+	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id,0)
 	model := ArticleEditModel{CategoryList: categoryList}
 	if article, ok := context.Data["article"].(*dbservice.ArticleDto); ok {
 		model.Article = *article
@@ -359,7 +368,7 @@ func RegisterPost(context *goweb.Context) {
 	context.Success(nil)
 }
 func CategoryList(context *goweb.Context) {
-	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id)
+	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id,0)
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("我的分类"), categoryList), "view/layout.html", "view/categorylist.html")
 }
 

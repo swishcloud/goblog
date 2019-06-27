@@ -15,6 +15,7 @@ type ArticleDto struct {
 	ArticleType int
 	CategoryId  int
 	UserId      int
+	CategoryName string
 }
 type UserDto struct {
 	Id        int

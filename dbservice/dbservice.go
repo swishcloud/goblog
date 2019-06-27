@@ -24,23 +24,33 @@ func (err dbServiceError) Error() string {
 	return err.error
 }
 
-func GetArticles(articleType, userId int, key string, withLockedContext bool) []*ArticleDto {
+func GetArticles(articleType, userId int, key string, withLockedContext bool, categoryName string) []*ArticleDto {
 	var typeWhere string
 	var userIdWhere string
 	if articleType == 0 {
 		typeWhere = ""
 	} else {
-		typeWhere = " and type=" + strconv.Itoa(articleType)
+		typeWhere = " and a.type=" + strconv.Itoa(articleType)
 	}
 
 	if userId == 0 {
 		userIdWhere = ""
 	} else {
-		userIdWhere = " and userId=" + strconv.Itoa(userId)
+		userIdWhere = " and a.userId=" + strconv.Itoa(userId)
 	}
-	rows, err := db.Query("select id,title,summary,html,content,insertTime,categoryId,userId,type from article where title like ? "+typeWhere+userIdWhere+" and type!=4 and isDeleted=0 and isBanned=0 order by updateTime desc", "%"+key+"%")
-	if err != nil {
-		panic(err.Error())
+	var rows *sql.Rows
+	if categoryName == "" {
+		r, err := db.Query("select a.id,a.title,a.summary,a.html,a.content,a.insertTime,a.categoryId,a.userId,a.type,b.name as categoryName from article as a join category as b on a.categoryId=b.id where title like ? "+typeWhere+userIdWhere+" and type!=4 and a.isDeleted=0 and isBanned=0 order by a.updateTime desc",  "%"+key+"%")
+		if err != nil {
+			panic(err.Error())
+		}
+		rows=r
+	} else {
+		r, err := db.Query("select a.id,a.title,a.summary,a.html,a.content,a.insertTime,a.categoryId,a.userId,a.type,b.name as categoryName from article as a join category as b on a.categoryId=b.id where b.name=? and title like ? "+typeWhere+userIdWhere+" and type!=4 and a.isDeleted=0 and isBanned=0 order by  a.updateTime desc", categoryName, "%"+key+"%")
+		if err != nil {
+			panic(err.Error())
+		}
+		rows=r
 	}
 	defer rows.Close()
 
@@ -56,11 +66,12 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 			categoryId  int
 			userId      int
 			articleType int
+			categoryName string
 		)
-		if err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType); err != nil {
+		if err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType,&categoryName); err != nil {
 			panic(err)
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType})
+		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType,CategoryName: categoryName})
 	}
 	for _, v := range articles {
 		if v.ArticleType == 3 && !withLockedContext {
@@ -71,10 +82,21 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool) []
 	return articles
 }
 
-func GetCategories(userId int) []CategoryDto {
-	rows, err := db.Query("select id,name from category where isdeleted=0 and userId=? order by name", userId)
-	if err != nil {
-		panic(err)
+func GetCategories(userId int,t int) []CategoryDto {
+	var rows *sql.Rows
+	if t==1{
+		r, err := db.Query("select a.id,a.name  from category where id in( select a.id from category as a join article as b on a.id=b.categoryId  where b.type=1 and a.isdeleted=0 and a.userId=? order by name group by a.id ) ", userId)
+		if err != nil {
+			panic(err)
+		}
+		rows=r
+	}else{
+		r, err := db.Query("select id,name from category where isdeleted=0 and userId=? order by name", userId)
+		if err != nil {
+			panic(err)
+		}
+		rows=r
+
 	}
 	var categoryList []CategoryDto
 	for rows.Next() {
@@ -210,7 +232,7 @@ func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (int, error) {
 		if err != nil {
 			return id, err
 		}
-		fmt.Println(lockoutEndTime.UTC(),time.Now().UTC())
+		fmt.Println(lockoutEndTime.UTC(), time.Now().UTC())
 		if lockoutEndTime.UTC().Before(time.Now().UTC()) {
 			UnlockUser(id)
 		} else {
@@ -233,21 +255,21 @@ func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (int, error) {
 }
 
 func LockUser(id int) {
-	_,err:=db.Exec("update user set lockoutEnd=? where id=?", time.Now().Add(time.Minute*20), id)
-	if err!=nil{
+	_, err := db.Exec("update user set lockoutEnd=? where id=?", time.Now().Add(time.Minute*20), id)
+	if err != nil {
 		panic(err)
 	}
 }
 func UnlockUser(id int) {
-	_,err:=db.Exec("update user set lockoutEnd=null where id=?", id)
-	if err!=nil{
+	_, err := db.Exec("update user set lockoutEnd=null where id=?", id)
+	if err != nil {
 		panic(err)
 	}
 }
 
 func ResetAccessFailedCount(id int) {
-	_,err:=db.Exec("update user set accessFailedCount=0  where id=?",  id)
-	if err!=nil{
+	_, err := db.Exec("update user set accessFailedCount=0  where id=?", id)
+	if err != nil {
 		panic(err)
 	}
 }
