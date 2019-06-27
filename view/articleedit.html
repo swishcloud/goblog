@@ -62,6 +62,7 @@
     <script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
     <script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
     <script>
+        var saved = false
         var simplemde = new SimpleMDE({
             element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,
             previewRender: function (plainText) {
@@ -90,12 +91,18 @@
                 if (res.error) {
                     app.showError($('#error'), res.error)
                 } else {
+                    saved = true
                     window.location.href = "/u/{{.UserId}}/post/" + res.data
                 }
             }
         })
-        window.onbeforeunload = function() {
-            return false
-        }
+        window.addEventListener('beforeunload', function (e) {
+            if (!saved) {
+                // Cancel the event
+                e.preventDefault();
+                // Chrome requires returnValue to be set
+                e.returnValue = '';
+            }
+        });
     </script>
 {{end}}
