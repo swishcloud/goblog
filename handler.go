@@ -228,8 +228,8 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		newArticleLastInsertId:=superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey))["NewArticleLastInsertId"].(int)
-		intId=newArticleLastInsertId
+		newArticleLastInsertId:=superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey))["NewArticleLastInsertId"].(int64)
+		intId=int(newArticleLastInsertId)
 	} else {
 		rawArticle := dbservice.GetArticle(intId)
 		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, config.PostKey), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id))
