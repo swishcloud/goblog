@@ -398,12 +398,7 @@ func RegisterPost(context *goweb.Context) {
 }
 
 func sendValidateEmail(context *goweb.Context, userId int) {
-	var protocol string
-	if context.Request.TLS == nil {
-		protocol = "http"
-	} else {
-		protocol = "https"
-	}
+	protocol:="https"
 	user := dbservice.GetUser(userId)
 	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email=flwwd@outlook.com&code=" + url.QueryEscape(*user.SecurityStamp)
 	emailSender.SendEmail(*user.Email, "邮箱激活", fmt.Sprintf("<html><body>"+
