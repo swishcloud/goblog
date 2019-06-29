@@ -36,7 +36,7 @@ func init() {
 	db, _ = sql.Open("mysql", config.SqlDataSourceName)
 	dbservice.SetDb(db)
 
-	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr,Name:config.WebsiteName}
+	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr, Name: config.WebsiteName}
 }
 
 type ErrorPageModel struct {

@@ -398,7 +398,7 @@ func RegisterPost(context *goweb.Context) {
 }
 
 func sendValidateEmail(context *goweb.Context, userId int) {
-	protocol:="https"
+	protocol := "https"
 	user := dbservice.GetUser(userId)
 	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email=flwwd@outlook.com&code=" + url.QueryEscape(*user.SecurityStamp)
 	emailSender.SendEmail(*user.Email, "邮箱激活", fmt.Sprintf("<html><body>"+
@@ -549,14 +549,23 @@ func Upload(context *goweb.Context) {
 	context.Writer.Write(json)
 }
 func EmailValidate(context *goweb.Context) {
-	email := context.Request.URL.Query().Get("email")
+	email := context.Request.Form.Get("email")
 	code := context.Request.Form.Get("code")
-	if code != "" {
-		dbservice.ValidateEmail(email, code)
-		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
-		return
+	user := dbservice.GetUserByEmail(email)
+	if user != nil {
+		if user.EmailConfirmed == 0 {
+			if code == "" {
+				goweb.RenderPage(context, NewPageModel(GetPageTitle("邮箱验证"), email), "view/layout.html", "view/emailValidate.html")
+			} else {
+				dbservice.ValidateEmail(email, code)
+				http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+			}
+		} else {
+			http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+		}
+	} else {
+		panic("email not registered")
 	}
-	goweb.RenderPage(context, NewPageModel(GetPageTitle("邮箱验证"), email), "view/layout.html", "view/emailValidate.html")
 }
 
 func EmailValidateSend(context *goweb.Context) {

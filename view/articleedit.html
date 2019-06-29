@@ -1,8 +1,8 @@
 {{define "content" }}
     {{$categoryId:=.Article.CategoryId}}
     {{$articleType:=.Article.ArticleType}}
-    <link rel="stylesheet" type="text/css" href="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.css"
-          media="screen">
+    <link rel="stylesheet" href="/static/highlight/highlight.min.css">
+    <link rel="stylesheet" type="text/css" href="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.css">
     <style>
         .fa-header:before {
             content: "\f1dc";
@@ -58,11 +58,24 @@
 {{end}}
 
 {{define "script"}}
+    <script src="/static/highlight/highlight.min.js"></script>
+    <script src="/static/highlight/go.min.js"></script>
     <script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
     <script src="/static/js/marked.min.js"></script>
     <script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
     <script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
     <script>
+        marked.setOptions({
+            highlight: function(code, lang) {
+                try{
+                    let result=hljs.highlight(lang, code, true, null)
+                    return result.value
+                }catch{
+                    return code
+                }
+            }
+        });
+
         var saved = false
         var simplemde = new SimpleMDE({
             element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,

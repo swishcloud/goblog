@@ -34,6 +34,11 @@ p {
     background-color: #fff;
 }
 
+pre{
+    background-color:#f2f5f9 !important;
+    padding:20px;
+}
+
 ul {
     padding: 0;
     margin: 0;
