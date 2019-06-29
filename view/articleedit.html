@@ -23,6 +23,7 @@
             <input type="hidden" name="id" value="{{.Article.Id}}"/>
             <input type="hidden" name="summary" id="summary"/>
             <input type="hidden" name="html" id="html"/>
+            <input type="hidden" name="cover" id="cover"/>
             <div id="error"></div>
             <div class="form-group">
                 <label>标题</label>
@@ -81,12 +82,19 @@
         });
         app.ajaxSubmit($("form:last"), {
             before: function () {
+                app.closeError($('#error'))
+
                 var html = marked(simplemde.value(), {breaks: true, sanitize: true});
                 var summary = html.replace(/(<([^>]+)>)/ig, "");
                 $("#html").val(html)
                 $("#summary").val(summary)
-                app.closeError($('#error'))
-            },
+
+                var imgs = $(html).find("img")
+                if (imgs.length > 0) {
+                    $("#cover").val(imgs.attr("src"))
+                }
+            }
+            ,
             success: function (res) {
                 if (res.error) {
                     app.showError($('#error'), res.error)

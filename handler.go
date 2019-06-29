@@ -79,7 +79,7 @@ type PageModel struct {
 	Description    string
 	Data           interface{}
 	Duration       int
-	LastUpdateTime time.Time
+	LastUpdateTime string
 }
 
 func NewPageModel(pageTitle string, data interface{}) *PageModel {
@@ -119,17 +119,17 @@ func Authorize(w http.ResponseWriter, req *http.Request) bool {
 }
 
 type UserArticleModel struct {
-	Articles []*dbservice.ArticleDto
+	Articles   []*dbservice.ArticleDto
 	Categories []dbservice.CategoryDto
-	UserId int
+	UserId     int
 }
 
-func (m UserArticleModel) GetCategoryUrl(name string)string{
-return fmt.Sprintf("/user/%d/article?category=%s",m.UserId,name)
+func (m UserArticleModel) GetCategoryUrl(name string) string {
+	return fmt.Sprintf("/user/%d/article?category=%s", m.UserId, name)
 }
 
 func UserArticle(context *goweb.Context) {
-	category:=context.Request.URL.Query().Get("category")
+	category := context.Request.URL.Query().Get("category")
 	re := regexp.MustCompile(`\d+`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
 	user := dbservice.GetUser(id)
@@ -140,9 +140,9 @@ func UserArticle(context *goweb.Context) {
 	} else {
 		queryArticleType = 1
 	}
-	articles := dbservice.GetArticles(queryArticleType, user.Id, "", false,category)
-	categories:=dbservice.GetCategories(user.Id,queryArticleType)
-	model := UserArticleModel{Articles: articles,Categories:categories,UserId:user.Id}
+	articles := dbservice.GetArticles(queryArticleType, user.Id, "", false, category)
+	categories := dbservice.GetCategories(user.Id, queryArticleType)
+	model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(user.UserName), model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
 }
 
@@ -161,15 +161,15 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	data := dbservice.GetArticles(1, 0, key, false,"")
-	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", data), "view/layout.html","view/leftRightLayout.html", "view/articlelist.html")
+	data := dbservice.GetArticles(1, 0, key, false, "")
+	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", data), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
 
 }
 
 type ArticleEditModel struct {
 	CategoryList []dbservice.CategoryDto
 	Article      dbservice.ArticleDto
-	UserId int
+	UserId       int
 }
 
 func ArticleEdit(context *goweb.Context) {
@@ -177,8 +177,8 @@ func ArticleEdit(context *goweb.Context) {
 		http.Redirect(context.Writer, context.Request, PATH_LOGIN+"?redirectUri="+context.Request.RequestURI, 302)
 		return
 	}
-	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id,0)
-	model := ArticleEditModel{CategoryList: categoryList,UserId:MustGetLoginUser(context).Id}
+	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id, 0)
+	model := ArticleEditModel{CategoryList: categoryList, UserId: MustGetLoginUser(context).Id}
 	if article, ok := context.Data["article"].(*dbservice.ArticleDto); ok {
 		model.Article = *article
 	} else {
@@ -208,6 +208,15 @@ func ArticleSave(context *goweb.Context) {
 	articleType := context.Request.PostForm.Get("type")
 	html := goweb.SanitizeHtml(context.Request.PostForm.Get("html"))
 	summary := context.Request.PostForm.Get("summary")
+
+	c := context.Request.PostForm.Get("cover")
+	var cover *string
+	if c == "" {
+		cover = nil
+	} else {
+		cover = &c
+	}
+
 	summaryRunes := []rune(summary)
 	if len(summaryRunes) > 200 {
 		summaryRunes = summaryRunes[:200]
@@ -228,11 +237,12 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		newArticleLastInsertId:=superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey))["NewArticleLastInsertId"].(int64)
-		intId=int(newArticleLastInsertId)
+		newArticleLastInsertId := superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey, cover))["NewArticleLastInsertId"].(int64)
+		intId = int(newArticleLastInsertId)
 	} else {
 		rawArticle := dbservice.GetArticle(intId)
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, config.PostKey), dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id))
+		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, config.PostKey, rawArticle.Cover),
+			dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id, cover))
 	}
 	context.Success(intId)
 }
@@ -327,8 +337,8 @@ func LoginPost(context *goweb.Context) {
 	account := context.Request.PostForm.Get("account")
 	password := context.Request.PostForm.Get("password")
 
-	id,err:=dbservice.CheckUser(account,password,5)
-	if err!=nil{
+	id, err := dbservice.CheckUser(account, password, 5)
+	if err != nil {
 		context.Failed(err.Error())
 		return
 	}
@@ -370,7 +380,7 @@ func RegisterPost(context *goweb.Context) {
 	context.Success(nil)
 }
 func CategoryList(context *goweb.Context) {
-	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id,0)
+	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id, 0)
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("我的分类"), categoryList), "view/layout.html", "view/categorylist.html")
 }
 
@@ -415,11 +425,11 @@ func CategorySave(context *goweb.Context) {
 }
 func CategoryDelete(context *goweb.Context) {
 	id := context.Request.FormValue("id")
-	intId,err:=strconv.Atoi(id)
-	if err!=nil{
+	intId, err := strconv.Atoi(id)
+	if err != nil {
 		panic(err)
 	}
-	superdb.ExecuteTransaction(db,dbservice.CategoryDelete(intId))
+	superdb.ExecuteTransaction(db, dbservice.CategoryDelete(intId))
 	context.Success(nil)
 }
 

@@ -13,8 +13,10 @@ type Config struct {
 	WebsiteName       string
 	Key               string
 	PostKey           string
-	LastUpdateTime    time.Time
 	ConcurrenceNum    int
+
+	//not read from configuration file
+	LastUpdateTime    string
 }
 
 var config Config
@@ -29,7 +31,7 @@ func ReadConfig() Config {
 	info, _ := file.Stat()
 	loc, _ := time.LoadLocation("Local")
 	tm := info.ModTime().In(loc)
-	c.LastUpdateTime = tm
+	c.LastUpdateTime = tm.Format("2006-01-02 15:04:05")
 
 	return c
 }

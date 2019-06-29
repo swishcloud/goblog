@@ -14,8 +14,8 @@
         .post .pic {
             float: left;
             width: 220px;
-            height: 130px;
             display: block;
+            overflow: hidden;
         }
 
         .post .summary {
@@ -28,13 +28,14 @@
         @media (min-width: 1200px) {
             .post .pic {
                 margin-right: 15px;
-                overflow:hidden;
+                height: 130px;
             }
         }
 
         @media (max-width: 1199px) {
             .post .pic {
                 width: 100%;
+                max-height: 200px;
                 float: none;
                 margin-bottom: 15px;
             }
@@ -44,10 +45,12 @@
             background-color: white;
             padding: 15px;
         }
-        .sidebar-component ul li{
-            float:left;
-            margin-right:15px;
+
+        .sidebar-component ul li {
+            float: left;
+            margin-right: 15px;
         }
+
         .sidebar-component h5:after {
             content: "";
             background-color: black;
@@ -57,7 +60,10 @@
             margin-top: 10px;
             transition: 0.5s;
         }
-        .sidebar-component:hover ::after { width: 70px; }
+
+        .sidebar-component:hover ::after {
+            width: 70px;
+        }
     </style>
     <form class="form-inline mb-3">
         <input class="form-control mr-sm-2" type="search" placeholder="关键字" aria-label="Search" name="key">
@@ -68,16 +74,11 @@
             <h3>
                 <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">{{.Title}}</a>
             </h3>
-            <a class="pic clearfix" href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">
-                <img class="zoom" src="/static/images/temp-post-cover.jpeg">
-            </a>
-            <p class="summary">{{.Summary}}</p>
-            <span>{{.InsertTime}}</span>
-        </div>
-        <div class="post clearfix">
-            <h3>
-                <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">{{.Title}}</a>
-            </h3>
+            {{if .Cover}}
+                <a class="pic clearfix" href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">
+                    <img class="zoom" src="{{.Cover}}">
+                </a>
+            {{end }}
             <p class="summary">{{.Summary}}</p>
             <span>{{.InsertTime}}</span>
         </div>
