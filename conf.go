@@ -31,8 +31,14 @@ func ReadConfig() Config {
 	var c Config
 	dec.Decode(&c)
 
-	info, _ := file.Stat()
-	loc, _ := time.LoadLocation("Local")
+	info, err := file.Stat()
+	if err!=nil{
+		panic(err)
+	}
+	loc, err := time.LoadLocation("Local")
+	if err!=nil{
+		panic(err)
+	}
 	tm := info.ModTime().In(loc)
 	c.LastUpdateTime = tm.Format("2006-01-02 15:04:05")
 
