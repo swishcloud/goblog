@@ -1,0 +1,31 @@
+{{define "content"}}
+    <div class="container text-center">
+        <form method="post" action="emailValidateSend">
+            <div id="error"></div>
+            <input type="hidden" name="email" value="{{.}}">
+            <p class=""><span>{{.}}邮箱已经注册，请到验证邮件中激活后</span><a href="/login" class="btn-link">登录</a></p>
+            <button id="resend" class="btn btn-success">重新发送验证邮件</button>
+        </form>
+    </div>
+{{end}}
+{{define "script"}}
+    <script>
+        app.ajaxSubmit($("form:last"), {
+            before: function () {
+                app.closeError($('#error'))
+            },
+            success: function (res) {
+                if (res.error) {
+                    app.showError($('#error'), res.error)
+                } else {
+                    $("#resend").addClass("disabled").prop("disabled",true).text("已重发验证邮件")
+                }
+            }
+        }, {
+            password: "required",
+            confirmPassword: {
+                equalTo: "#password"
+            }
+        })
+    </script>
+{{end}}

@@ -11,8 +11,12 @@
             </div>
             <div id="register-form">
                 <div class="form-group">
-                    <label for="account">账号</label>
-                    <input type="text" class="form-control" id="account" name="account" placeholder="账号" required>
+                    <label for="email">邮箱</label>
+                    <input type="email" class="form-control" id="email" name="email" placeholder="邮箱" required>
+                </div>
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="用户名" required>
                 </div>
                 <div class="form-group">
                     <label for="password">密码</label>
@@ -24,10 +28,10 @@
                            placeholder="密码" required>
                 </div>
                 <button id="login" type="submit" class="btn btn-primary">注册</button>
-                <p class="mt-2">已有账号?<a href="/login">现在登录</a></p>
+                <p class="mt-2">已有账号?<a class="btn-link" href="/login">现在登录</a></p>
             </div>
             <div id="register-result" class="d-none text-center">
-                <p><span>注册成功 </span><a href="/login">前往登录</a></p>
+                <p><span>注册成功,请进入您的邮箱激活后</span><a href="/login" class="btn-link">登录</a></p>
             </div>
         </form>
     </div>
@@ -42,8 +46,7 @@
                 if (res.error) {
                     app.showError($('#error'), res.error)
                 } else {
-                    $("#register-form").addClass("d-none")
-                    $("#register-result").removeClass("d-none")
+                    window.location.href=res.data.redirectUri
                 }
             }
         }, {

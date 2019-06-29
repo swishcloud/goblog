@@ -14,6 +14,9 @@ type Config struct {
 	Key               string
 	PostKey           string
 	ConcurrenceNum    int
+	SmtpUsername string
+	SmtpPassword string
+	SmtpAddr string
 
 	//not read from configuration file
 	LastUpdateTime    string

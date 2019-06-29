@@ -6,6 +6,7 @@ import (
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
+	"github.com/github-123456/gostudy/keygenerator"
 	"github.com/github-123456/gostudy/superdb"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
@@ -13,6 +14,7 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -20,21 +22,23 @@ import (
 )
 
 const (
-	PATH_ARTICLELIST    = "/articlelist"
-	PATH_ARTICLEEDIT    = "/articleedit"
-	PATH_ARTICLESAVE    = "/articlesave"
-	PATH_ARTICLEDELETE  = "/articledelete"
-	PATH_ARTICLELOCK    = "/articlelock"
-	PATH_LOGIN          = "/login"
-	PATH_REGISTER       = "/register"
-	PATH_LOGOUT         = "/logout"
-	PATH_CATEGORYLIST   = "/categories"
-	PATH_CATEGORYEDIT   = "/categoryedit"
-	PATH_CATEGORYSAVE   = "/categorysave"
-	PATH_CATEGORYDELETE = "/categorydelete"
-	PATH_SETLEVELTWOPWD = "/setlevel2pwd"
-	PATH_PROFILE        = "/profile"
-	PATH_UPLOAD         = "/upload"
+	PATH_ARTICLELIST       = "/articlelist"
+	PATH_ARTICLEEDIT       = "/articleedit"
+	PATH_ARTICLESAVE       = "/articlesave"
+	PATH_ARTICLEDELETE     = "/articledelete"
+	PATH_ARTICLELOCK       = "/articlelock"
+	PATH_LOGIN             = "/login"
+	PATH_REGISTER          = "/register"
+	PATH_LOGOUT            = "/logout"
+	PATH_CATEGORYLIST      = "/categories"
+	PATH_CATEGORYEDIT      = "/categoryedit"
+	PATH_CATEGORYSAVE      = "/categorysave"
+	PATH_CATEGORYDELETE    = "/categorydelete"
+	PATH_SETLEVELTWOPWD    = "/setlevel2pwd"
+	PATH_PROFILE           = "/profile"
+	PATH_UPLOAD            = "/upload"
+	PATH_EMAILVALIDATE     = "/emailValidate"
+	PATH_EMAILVALIDATESEND = "/emailValidateSend"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
@@ -66,6 +70,9 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
 	group.GET(PATH_PROFILE, Profile)
 	group.POST(PATH_UPLOAD, Upload)
+	group.POST(PATH_UPLOAD, Upload)
+	group.GET(PATH_EMAILVALIDATE, EmailValidate)
+	group.POST(PATH_EMAILVALIDATESEND, EmailValidateSend)
 }
 
 type PageModel struct {
@@ -334,16 +341,21 @@ func Login(context *goweb.Context) {
 }
 
 func LoginPost(context *goweb.Context) {
+	redirectUri := context.Request.URL.Query().Get("redirectUri")
 	account := context.Request.PostForm.Get("account")
 	password := context.Request.PostForm.Get("password")
 
-	id, err := dbservice.CheckUser(account, password, 5)
+	user, err := dbservice.CheckUser(account, password, 5)
 	if err != nil {
-		context.Failed(err.Error())
+		if err.Error() == "注册邮箱未激活" {
+			context.Success(PATH_EMAILVALIDATE + "?email=" + *user.Email)
+		} else {
+			context.Failed(err.Error())
+		}
 		return
 	}
 
-	jsonB, err := json.Marshal(User{Id: id, UserName: account})
+	jsonB, err := json.Marshal(User{Id: user.Id, UserName: user.UserName})
 	if err != nil {
 		context.Failed(err.Error())
 		return
@@ -353,7 +365,7 @@ func LoginPost(context *goweb.Context) {
 	cookie := http.Cookie{Name: SessionName, Value: aesencryption.Encrypt([]byte(config.Key), userJsonText), Path: "/"}
 	http.SetCookie(context.Writer, &cookie)
 
-	context.Success(nil)
+	context.Success(redirectUri)
 }
 
 func LogoutPost(context *goweb.Context) {
@@ -374,11 +386,34 @@ func Register(context *goweb.Context) {
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("注册"), nil), "view/layout.html", "view/register.html")
 }
 func RegisterPost(context *goweb.Context) {
-	account := context.Request.PostForm.Get("account")
+	username := context.Request.PostForm.Get("username")
 	password := context.Request.PostForm.Get("password")
-	superdb.ExecuteTransaction(db, dbservice.NewUser(account, password))
-	context.Success(nil)
+	email := context.Request.PostForm.Get("email")
+	securityStamp := keygenerator.NewKey(32)
+	newUserId := superdb.ExecuteTransaction(db, dbservice.NewUser(username, password, email, securityStamp))["newUserId"].(int)
+	sendValidateEmail(context, newUserId)
+	context.Success(struct {
+		RedirectUri string `json:"redirectUri"`
+	}{RedirectUri: PATH_EMAILVALIDATE + "?email=" + email})
 }
+
+func sendValidateEmail(context *goweb.Context, userId int) {
+	var protocol string
+	if context.Request.TLS == nil {
+		protocol = "http"
+	} else {
+		protocol = "https"
+	}
+	user := dbservice.GetUser(userId)
+	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email=flwwd@outlook.com&code=" + url.QueryEscape(*user.SecurityStamp)
+	emailSender.SendEmail(*user.Email, "邮箱激活", fmt.Sprintf("<html><body>"+
+		"%s，您好:<br/><br/>"+
+		"感谢您注册%s,您的登录邮箱为%s,请点击以下链接激活您的邮箱地址：<br/><br/>"+
+		"<a href='%s'>%s</a><br/><br/>"+
+		"如果以上链接无法访问，请将该网址复制并粘贴至浏览器窗口中直接访问。", user.UserName, config.WebsiteName, *user.Email, activateAddr, activateAddr)+
+		"</body></html>")
+}
+
 func CategoryList(context *goweb.Context) {
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id, 0)
 	goweb.RenderPage(context, NewPageModel(GetPageTitle("我的分类"), categoryList), "view/layout.html", "view/categorylist.html")
@@ -517,4 +552,21 @@ func Upload(context *goweb.Context) {
 	}
 	context.Writer.Header().Add("Content-Type", "application/json")
 	context.Writer.Write(json)
+}
+func EmailValidate(context *goweb.Context) {
+	email := context.Request.URL.Query().Get("email")
+	code := context.Request.Form.Get("code")
+	if code != "" {
+		dbservice.ValidateEmail(email, code)
+		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+		return
+	}
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("邮箱验证"), email), "view/layout.html", "view/emailValidate.html")
+}
+
+func EmailValidateSend(context *goweb.Context) {
+	email := context.Request.Form.Get("email")
+	user := dbservice.GetUserByEmail(email)
+	sendValidateEmail(context, user.Id)
+	context.Success(nil)
 }

@@ -22,4 +22,7 @@ type UserDto struct {
 	Id        int
 	UserName  string
 	Level2pwd *string
+	EmailConfirmed int
+	SecurityStamp *string
+	Email *string
 }

@@ -203,75 +203,104 @@ func ArticleDelete(id, loginUserId int) superdb.DbTask {
 	}
 }
 
+func GetUserByEmail(email string) *UserDto {
+	r := db.QueryRow("select id,userName,level2pwd,emailConfirmed,securityStamp,email from user where email=? and isdeleted=0 and isBanned=0", email)
+	return getUser(r)
+}
 func GetUser(userId int) *UserDto {
-	r := db.QueryRow("select id,userName,level2pwd from user where id=? and isdeleted=0 and isBanned=0", userId)
+	r := db.QueryRow("select id,userName,level2pwd,emailConfirmed,securityStamp,email from user where id=? and isdeleted=0 and isBanned=0", userId)
+	return getUser(r)
+}
+func getUser(r *sql.Row) *UserDto {
 	var (
-		id        int
-		userName  string
-		level2pwd *string
+		id             int
+		userName       string
+		level2pwd      *string
+		emailConfirmed int
+		securityStamp  *string
+		email          *string
 	)
-	if err := r.Scan(&id, &userName, &level2pwd); err != nil {
+	if err := r.Scan(&id, &userName, &level2pwd, &emailConfirmed, &securityStamp, &email); err != nil {
 		return nil
 	}
-	return &UserDto{Id: userId, UserName: userName, Level2pwd: level2pwd}
+	return &UserDto{Id: id, UserName: userName, Level2pwd: level2pwd, EmailConfirmed: emailConfirmed, SecurityStamp: securityStamp, Email: email}
 }
-
+func ValidateEmail(email,securityStamp string)  {
+	r,err:=db.Exec("update user set emailConfirmed=1 where email=? and emailConfirmed=0 and securityStamp=?",email,securityStamp)
+	if err!=nil{
+		panic(err)
+	}
+	if n,err:=r.RowsAffected();err!=nil{
+		panic(err)
+	}else if n==0{
+		panic("验证失败")
+	}
+}
 func NewCategory(name string, userId int) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 		tx.MustExec(`insert into category (name,insertTime,isDeleted,userId)values(?,?,?,?)`, name, time.Now(), 0, userId)
 	}
 }
 
-func NewUser(userName, password string) superdb.DbTask {
+func NewUser(userName, password string,email string, securityStamp string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned)values(?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0)
+		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email)values(?,?,?,?,?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0, 0, securityStamp,0,email)
 		lastId, err := r.LastInsertId()
 		if err != nil {
 			panic(err)
 		}
 		intLastId := int(lastId)
 		NewCategory("默认分类", intLastId)(tx)
+		tx.SetValue("newUserId", intLastId)
 	}
 }
 
-func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (int, error) {
+func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (*UserDto, error) {
 	var (
 		id                int
 		password          string
 		userName          string
 		accessFailedCount int
 		lockoutEnd        *string
+		emailConfirmed    int
 	)
-	r := db.QueryRow("select id,userName, password,accessFailedCount,lockoutEnd from user where userName=?", account)
-	err := r.Scan(&id, &userName, &password, &accessFailedCount, &lockoutEnd)
+	r := db.QueryRow("select id,userName, password,accessFailedCount,lockoutEnd,emailConfirmed from user where userName=? or email=?", account,account)
+	err := r.Scan(&id, &userName, &password, &accessFailedCount, &lockoutEnd, &emailConfirmed)
 	if err != nil {
-		return id, common.Error{fmt.Sprintf("账号不存在")}
+		return nil, common.Error{fmt.Sprintf("账号不存在")}
 	}
+
+	user:=GetUser(id)
+
+	if emailConfirmed == 0 {
+		return user, common.Error{"注册邮箱未激活"}
+	}
+
 	if lockoutEnd != nil {
 		lockoutEndTime, err := time.Parse("2006-01-02 15:04:05", *lockoutEnd)
 		if err != nil {
-			return id, err
+			return user, err
 		}
 		fmt.Println(lockoutEndTime.UTC(), time.Now().UTC())
 		if lockoutEndTime.UTC().Before(time.Now().UTC()) {
 			UnlockUser(id)
 		} else {
-			return id, common.Error{"您的账号已被锁定"}
+			return user, common.Error{"您的账号已被锁定"}
 		}
 	}
 	if !common.Md5Check(password, pwd) {
 		failedCount := accessFailedCount + 1
 		db.Exec("update user set accessFailedCount=? where userName=?", failedCount, account)
 		if remainC := maxAllowAccessFaildCount - failedCount; remainC > 0 {
-			return id, common.Error{fmt.Sprintf("密码错误，您还有%d次重试机会", remainC)}
+			return user, common.Error{fmt.Sprintf("密码错误，您还有%d次重试机会", remainC)}
 		} else {
 			LockUser(id)
 			ResetAccessFailedCount(id)
-			return id, common.Error{"您的账号已被锁定"}
+			return user, common.Error{"您的账号已被锁定"}
 		}
 	}
 	ResetAccessFailedCount(id)
-	return id, nil
+	return user, nil
 }
 
 func LockUser(id int) {
