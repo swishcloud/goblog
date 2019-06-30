@@ -58,9 +58,15 @@
         </div>
     </div>
 </div>
-<div class="footer" style="padding:25px 0;text-align: center;">
-    <p>页面处理耗时:{{.Duration}}ss</p>
-    <p>版本更新时间:{{.LastUpdateTime}}</p>
+<div class="footer" style="padding:25px 0;text-align: center;background-color: #282828;color:white;">
+    <div>
+        <a href="mailto:flwwd@outlook.com" class="text-white mr-2">邮件</a>
+        <a href="https://github.com/xiaozemin/goblog" class="text-white" target="_blank">Github</a>
+    </div>
+    <div style="color: #73777a;font-size: 14px;">
+        <div><span class="mr-2">页面处理耗时:{{.Duration}}ss </span><span>版本更新时间:{{.LastUpdateTime}}</span></div>
+        <div><span>Copyright © 2019 {{.WebSiteName}} All Rights Reserved</span></div>
+    </div>
 </div>
 <script src="/static/js/jquery-3.4.1.min.js"></script>
 <script src="/static/js/navbar.js"></script>

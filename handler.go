@@ -126,7 +126,7 @@ func Authorize(w http.ResponseWriter, req *http.Request) bool {
 }
 
 type UserArticleModel struct {
-	Articles   []*dbservice.ArticleDto
+	Articles   []dbservice.ArticleDto
 	Categories []dbservice.CategoryDto
 	UserId     int
 }
@@ -168,8 +168,11 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	data := dbservice.GetArticles(1, 0, key, false, "")
-	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", data), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
+	articles := dbservice.GetArticles(1, 0, key, false, "")
+	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", struct {
+		Key string
+		Articles []dbservice.ArticleDto
+	}{Key:key,Articles:articles}), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
 
 }
 

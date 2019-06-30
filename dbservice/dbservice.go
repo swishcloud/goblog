@@ -24,7 +24,7 @@ func (err dbServiceError) Error() string {
 	return err.error
 }
 
-func GetArticles(articleType, userId int, key string, withLockedContext bool, categoryName string) []*ArticleDto {
+func GetArticles(articleType, userId int, key string, withLockedContext bool, categoryName string) []ArticleDto {
 	var typeWhere string
 	var userIdWhere string
 	if articleType == 0 {
@@ -54,7 +54,7 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool, ca
 	}
 	defer rows.Close()
 
-	var articles []*ArticleDto
+	var articles []ArticleDto
 	for rows.Next() {
 		var (
 			id           int
@@ -77,13 +77,11 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool, ca
 		} else {
 			insertTime = t.Format("2006-01-02 15:04")
 		}
-		articles = append(articles, &ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType, CategoryName: categoryName, Cover: cover})
-	}
-	for _, v := range articles {
-		if v.ArticleType == 3 && !withLockedContext {
-			v.Content = ""
-			v.Summary = ""
+		if articleType == 3 && !withLockedContext {
+			content = ""
+			summary = ""
 		}
+		articles = append(articles, ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType, CategoryName: categoryName, Cover: cover})
 	}
 	return articles
 }
@@ -225,14 +223,14 @@ func getUser(r *sql.Row) *UserDto {
 	}
 	return &UserDto{Id: id, UserName: userName, Level2pwd: level2pwd, EmailConfirmed: emailConfirmed, SecurityStamp: securityStamp, Email: email}
 }
-func ValidateEmail(email,securityStamp string)  {
-	r,err:=db.Exec("update user set emailConfirmed=1 where email=? and emailConfirmed=0 and securityStamp=?",email,securityStamp)
-	if err!=nil{
+func ValidateEmail(email, securityStamp string) {
+	r, err := db.Exec("update user set emailConfirmed=1 where email=? and emailConfirmed=0 and securityStamp=?", email, securityStamp)
+	if err != nil {
 		panic(err)
 	}
-	if n,err:=r.RowsAffected();err!=nil{
+	if n, err := r.RowsAffected(); err != nil {
 		panic(err)
-	}else if n==0{
+	} else if n == 0 {
 		panic("验证失败")
 	}
 }
@@ -242,9 +240,9 @@ func NewCategory(name string, userId int) superdb.DbTask {
 	}
 }
 
-func NewUser(userName, password string,email string, securityStamp string) superdb.DbTask {
+func NewUser(userName, password string, email string, securityStamp string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email)values(?,?,?,?,?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0, 0, securityStamp,0,email)
+		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email)values(?,?,?,?,?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0, 0, securityStamp, 0, email)
 		lastId, err := r.LastInsertId()
 		if err != nil {
 			panic(err)
@@ -264,13 +262,13 @@ func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (*UserDto, err
 		lockoutEnd        *string
 		emailConfirmed    int
 	)
-	r := db.QueryRow("select id,userName, password,accessFailedCount,lockoutEnd,emailConfirmed from user where userName=? or email=?", account,account)
+	r := db.QueryRow("select id,userName, password,accessFailedCount,lockoutEnd,emailConfirmed from user where userName=? or email=?", account, account)
 	err := r.Scan(&id, &userName, &password, &accessFailedCount, &lockoutEnd, &emailConfirmed)
 	if err != nil {
 		return nil, common.Error{fmt.Sprintf("账号不存在")}
 	}
 
-	user:=GetUser(id)
+	user := GetUser(id)
 
 	if emailConfirmed == 0 {
 		return user, common.Error{"注册邮箱未激活"}
