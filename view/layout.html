@@ -51,14 +51,7 @@
 <div class="page-content">
     {{template "content" .Data}}
 </div>
-<div id="mask" class="d-none">
-    <div class="d-flex justify-content-center align-items-center">
-        <div class="spinner-border text-light" role="status">
-            <span class="sr-only">Loading...</span>
-        </div>
-    </div>
-</div>
-<div class="footer" style="padding:25px 0;text-align: center;background-color: #282828;color:white;">
+<div class="footer" style="padding:25px 0;text-align: center;background-color: #282828;color:white;margin-top: 20px;position: absolute;bottom: 0;width:100%;">
     <div>
         <a href="mailto:flwwd@outlook.com" class="text-white mr-2">邮件</a>
         <a href="https://github.com/xiaozemin/goblog" class="text-white" target="_blank">Github</a>
@@ -66,6 +59,13 @@
     <div style="color: #73777a;font-size: 14px;">
         <div><span class="mr-2">页面处理耗时:{{.Duration}}ss </span><span>版本更新时间:{{.LastUpdateTime}}</span></div>
         <div><span>Copyright © 2019 {{.WebSiteName}} All Rights Reserved</span></div>
+    </div>
+</div>
+<div id="mask" class="d-none">
+    <div class="d-flex justify-content-center align-items-center">
+        <div class="spinner-border text-light" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
     </div>
 </div>
 <script src="/static/js/jquery-3.4.1.min.js"></script>
