@@ -42,6 +42,9 @@ const (
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
+	auth := group.Group()
+	auth.Use(AuthMiddleware())
+
 	group.GET("/", ArticleList)
 	group.RegexMatch(regexp.MustCompile(`^/u/\d+/post/\d+$`), Article)
 	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), UserArticle)
@@ -52,25 +55,25 @@ func BindHandlers(group *goweb.RouterGroup) {
 		http.StripPrefix("/src/", http.FileServer(http.Dir(config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 	})
 	group.GET(PATH_ARTICLELIST, ArticleList)
-	group.GET(PATH_ARTICLEEDIT, ArticleEdit)
-	group.POST(PATH_ARTICLESAVE, ArticleSave)
-	group.POST(PATH_ARTICLEDELETE, ArticleDelete)
-	group.GET(PATH_ARTICLELOCK, ArticleLock)
-	group.POST(PATH_ARTICLELOCK, ArticleLockPost)
+	auth.GET(PATH_ARTICLEEDIT, ArticleEdit)
+	auth.POST(PATH_ARTICLESAVE, ArticleSave)
+	auth.POST(PATH_ARTICLEDELETE, ArticleDelete)
+	auth.GET(PATH_ARTICLELOCK, ArticleLock)
+	auth.POST(PATH_ARTICLELOCK, ArticleLockPost)
 	group.GET(PATH_LOGIN, Login)
 	group.POST(PATH_LOGIN, LoginPost)
 	group.POST(PATH_LOGOUT, LogoutPost)
 	group.GET(PATH_REGISTER, Register)
 	group.POST(PATH_REGISTER, RegisterPost)
-	group.GET(PATH_CATEGORYLIST, CategoryList)
-	group.GET(PATH_CATEGORYEDIT, CategoryEdit)
-	group.POST(PATH_CATEGORYSAVE, CategorySave)
-	group.POST(PATH_CATEGORYDELETE, CategoryDelete)
-	group.GET(PATH_SETLEVELTWOPWD, SetLevelTwoPwd)
-	group.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
-	group.GET(PATH_PROFILE, Profile)
-	group.POST(PATH_UPLOAD, Upload)
-	group.POST(PATH_UPLOAD, Upload)
+	auth.GET(PATH_CATEGORYLIST, CategoryList)
+	auth.GET(PATH_CATEGORYEDIT, CategoryEdit)
+	auth.POST(PATH_CATEGORYSAVE, CategorySave)
+	auth.POST(PATH_CATEGORYDELETE, CategoryDelete)
+	auth.GET(PATH_SETLEVELTWOPWD, SetLevelTwoPwd)
+	auth.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
+	auth.GET(PATH_PROFILE, Profile)
+	auth.POST(PATH_UPLOAD, Upload)
+	auth.POST(PATH_UPLOAD, Upload)
 	group.GET(PATH_EMAILVALIDATE, EmailValidate)
 	group.POST(PATH_EMAILVALIDATESEND, EmailValidateSend)
 }
@@ -170,10 +173,9 @@ func ArticleList(context *goweb.Context) {
 	}
 	articles := dbservice.GetArticles(1, 0, key, false, "")
 	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", struct {
-		Key string
+		Key      string
 		Articles []dbservice.ArticleDto
-	}{Key:key,Articles:articles}), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
-
+	}{Key: key, Articles: articles}), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
 }
 
 type ArticleEditModel struct {
@@ -183,10 +185,6 @@ type ArticleEditModel struct {
 }
 
 func ArticleEdit(context *goweb.Context) {
-	if !IsLogin(context) {
-		http.Redirect(context.Writer, context.Request, PATH_LOGIN+"?redirectUri="+context.Request.RequestURI, 302)
-		return
-	}
 	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id, 0)
 	model := ArticleEditModel{CategoryList: categoryList, UserId: MustGetLoginUser(context).Id}
 	if article, ok := context.Data["article"].(*dbservice.ArticleDto); ok {
@@ -442,10 +440,6 @@ func CategoryEdit(context *goweb.Context) {
 	goweb.RenderPage(context, NewPageModel(GetPageTitle(title), model), "view/layout.html", "view/categoryedit.html")
 }
 func CategorySave(context *goweb.Context) {
-	if !IsLogin(context) {
-		context.Failed("登录失效")
-		return
-	}
 	name := context.Request.PostForm.Get("name")
 	id := context.Request.PostForm.Get("id")
 	if id == "" {

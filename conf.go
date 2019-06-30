@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"time"
 )
 
 type Config struct {
@@ -35,11 +34,7 @@ func ReadConfig() Config {
 	if err!=nil{
 		panic(err)
 	}
-	loc, err := time.LoadLocation("Local")
-	if err!=nil{
-		panic(err)
-	}
-	tm := info.ModTime().In(loc)
+	tm := info.ModTime().Local()
 	c.LastUpdateTime = tm.Format("2006-01-02 15:04:05")
 
 	return c

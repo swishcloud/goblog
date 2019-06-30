@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/mail"
 	"net/smtp"
+	"time"
 )
 
 func Md5Check(hashedStr string, plain string) bool {
@@ -25,6 +26,14 @@ type Error struct {
 
 func (e Error) Error() string {
 	return e.Err
+}
+
+func ConvUtcToLocal(utcTime string,rawLayout string,newLayout string)string {
+	if t, err := time.Parse(rawLayout, utcTime); err != nil {
+		panic(err)
+	} else {
+		return t.Local().Format(newLayout)
+	}
 }
 
 type EmailSender struct {

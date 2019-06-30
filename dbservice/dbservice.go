@@ -72,11 +72,7 @@ func GetArticles(articleType, userId int, key string, withLockedContext bool, ca
 		if err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType, &categoryName, &cover); err != nil {
 			panic(err)
 		}
-		if t, err := time.Parse("2006-01-02 15:04:05", insertTime); err != nil {
-			panic(err)
-		} else {
-			insertTime = t.Format("2006-01-02 15:04")
-		}
+		insertTime = common.ConvUtcToLocal(insertTime, "2006-01-02 15:04:05", "2006-01-02 15:04")
 		if articleType == 3 && !withLockedContext {
 			content = ""
 			summary = ""
@@ -187,6 +183,7 @@ func GetArticle(id int) *ArticleDto {
 	if err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &categoryId, &userId, &cover); err != nil {
 		return nil
 	}
+	insertTime= common.ConvUtcToLocal(insertTime, "2006-01-02 15:04:05", "2006-01-02 15:04")
 	return &ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 
