@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/github-123456/goblog/chat"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
@@ -39,6 +40,8 @@ const (
 	PATH_UPLOAD            = "/upload"
 	PATH_EMAILVALIDATE     = "/emailValidate"
 	PATH_EMAILVALIDATESEND = "/emailValidateSend"
+	PATH_WEBSOCKET = "/ws"
+	PATH_CHAT= "/chat"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
@@ -54,6 +57,7 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/src/", http.FileServer(http.Dir(config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 	})
+	group.GET(PATH_WEBSOCKET,chat.WebSocket)
 	group.GET(PATH_ARTICLELIST, ArticleList)
 	auth.GET(PATH_ARTICLEEDIT, ArticleEdit)
 	auth.POST(PATH_ARTICLESAVE, ArticleSave)
@@ -73,9 +77,9 @@ func BindHandlers(group *goweb.RouterGroup) {
 	auth.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
 	auth.GET(PATH_PROFILE, Profile)
 	auth.POST(PATH_UPLOAD, Upload)
-	auth.POST(PATH_UPLOAD, Upload)
 	group.GET(PATH_EMAILVALIDATE, EmailValidate)
 	group.POST(PATH_EMAILVALIDATESEND, EmailValidateSend)
+	group.GET(PATH_CHAT, Chat)
 }
 
 type PageModel struct {
@@ -118,15 +122,6 @@ func GetPageTitle(title string) string {
 
 const SessionName = "session"
 
-func Authorize(w http.ResponseWriter, req *http.Request) bool {
-	cookie, err := req.Cookie(SessionName)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return false
-	}
-	_ = cookie
-	return true
-}
 
 type UserArticleModel struct {
 	Articles   []dbservice.ArticleDto
@@ -570,4 +565,7 @@ func EmailValidateSend(context *goweb.Context) {
 	user := dbservice.GetUserByEmail(email)
 	sendValidateEmail(context, user.Id)
 	context.Success(nil)
+}
+func Chat(context *goweb.Context) {
+	goweb.RenderPage(context, NewPageModel(GetPageTitle("IM"), nil), "view/layout.html", "view/chat.html")
 }

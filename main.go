@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/github-123456/goblog/chat"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/goweb"
@@ -12,12 +13,12 @@ import (
 
 func main() {
 	addr := flag.String("addr", config.Host, "http service address")
+	flag.Parse()
 	fmt.Println("listening on:", config.Host)
 	g := goweb.Default()
 	g.ErrorPageFunc = ErrorPage
 	g.ConcurrenceNumSem = make(chan int, config.ConcurrenceNum)
 	BindHandlers(&g.RouterGroup)
-
 	server := http.Server{
 		Addr:    *addr,
 		Handler: g,
@@ -32,6 +33,7 @@ var db *sql.DB
 var emailSender common.EmailSender
 
 func init() {
+	go chat.GetHub().Run()
 	config = ReadConfig()
 	db, _ = sql.Open("mysql", config.SqlDataSourceName)
 	dbservice.SetDb(db)

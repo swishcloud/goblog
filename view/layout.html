@@ -20,6 +20,9 @@
         </div>
     </div>
     <ul class="menu">
+        <li class="menu-item">
+            <a href="/chat">IM</a>
+        </li>
         {{if eq .User.Id 0}}
             <li class="menu-item">
                 <a href="/login?redirectUri={{.RequestUri}}">登录</a>

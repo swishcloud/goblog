@@ -1,0 +1,93 @@
+{{define "content"}}
+    <style type="text/css">
+        .zone{
+            padding:0 20px;
+            width:100%;
+            position: absolute;
+            height: calc(100% - 220px);
+        }
+        .zone-left {
+            position: absolute;
+            width: 300px;
+            border: 1px solid red;
+            height: 100%;
+        }
+
+        .zone-chat {
+            height: 100%;
+            margin-left: 305px;
+        }
+
+        #log {
+            height:calc(100% - 50px);
+            border: 1px solid red;
+            overflow-y: scroll;
+        }
+
+        #form {
+        }
+
+    </style>
+    <div class="zone">
+        <div class="zone-left"></div>
+        <div class="zone-chat">
+            <div id="log">
+
+            </div>
+            <form id="form" class="my-3">
+                <input type="text" id="msg" size="64"/>
+                <input type="submit" value="Send"/>
+            </form>
+        </div>
+    </div>
+{{end}}
+{{define "script"}}
+    <script type="text/javascript">
+        window.onload = function () {
+            var conn;
+            var msg = document.getElementById("msg");
+            var log = document.getElementById("log");
+
+            function appendLog(item) {
+                var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+                log.appendChild(item);
+                if (doScroll) {
+                    log.scrollTop = log.scrollHeight - log.clientHeight;
+                }
+            }
+
+            document.getElementById("form").onsubmit = function () {
+                if (!conn) {
+                    return false;
+                }
+                if (!msg.value) {
+                    return false;
+                }
+                conn.send(msg.value);
+                msg.value = "";
+                return false;
+            };
+
+            if (window["WebSocket"]) {
+                conn = new WebSocket("ws://" + document.location.host + "/ws");
+                conn.onclose = function (evt) {
+                    var item = document.createElement("div");
+                    item.innerHTML = "<b>Connection closed.</b>";
+                    appendLog(item);
+                };
+                conn.onmessage = function (evt) {
+                    var messages = evt.data.split('\n');
+                    for (var i = 0; i < messages.length; i++) {
+                        var item = document.createElement("div");
+                        item.innerText = messages[i];
+                        appendLog(item);
+                    }
+                };
+            } else {
+                var item = document.createElement("div");
+                item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+                appendLog(item);
+            }
+        };
+    </script>
+{{end}}
