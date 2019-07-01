@@ -4,6 +4,7 @@ import (
 	"github.com/github-123456/goweb"
 	"github.com/gorilla/websocket"
 	"log"
+	"net/http"
 	"time"
 )
 
@@ -21,9 +22,12 @@ const (
 	maxMessageSize = 512
 )
 
-var Upgrader = websocket.Upgrader{
+var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 //client is a middleware between the websocket connection and the hub
@@ -86,7 +90,7 @@ func (c *Client) sendMessage(messageType int, msg []byte) error {
 }
 
 func WebSocket(ctx *goweb.Context) {
-	conn, err := Upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		panic(err)
 	}
