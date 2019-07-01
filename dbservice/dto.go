@@ -26,3 +26,9 @@ type UserDto struct {
 	SecurityStamp *string
 	Email *string
 }
+
+
+type WsmessageDto struct {
+	InsertTime string
+	Msg string
+}

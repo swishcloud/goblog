@@ -183,7 +183,7 @@ func GetArticle(id int) *ArticleDto {
 	if err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &categoryId, &userId, &cover); err != nil {
 		return nil
 	}
-	insertTime= common.ConvUtcToLocal(insertTime, "2006-01-02 15:04:05", "2006-01-02 15:04")
+	insertTime = common.ConvUtcToLocal(insertTime, "2006-01-02 15:04:05", "2006-01-02 15:04")
 	return &ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 
@@ -316,4 +316,31 @@ func ResetAccessFailedCount(id int) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func WsmessageInsert(msg string) {
+	_, err := db.Exec("insert into wsmessage (insertTime,msg,isDeleted) values(?,?,?)", time.Now(), msg, 0)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func WsmessageTop() ([]WsmessageDto,error) {
+	rows, err := db.Query("select  insertTime,msg from goblog.wsmessage where isDeleted=0 and insertTime> (NOW() - INTERVAL 60 MINUTE) limit 100")
+	if err != nil {
+		return nil,err
+	}
+	dtos := []WsmessageDto{}
+	for rows.Next() {
+		var (
+			insertTime string
+			msg        string
+		)
+		err:=rows.Scan(&insertTime, &msg)
+		if err != nil {
+			return nil,err
+		}
+		dtos = append(dtos, WsmessageDto{InsertTime: common.ConvUtcToLocal(insertTime,common.TimeLayoutMysqlDateTime,common.TimeLayout2), Msg: msg})
+	}
+	return dtos,nil
 }

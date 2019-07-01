@@ -79,7 +79,8 @@
                     var messages = evt.data.split('\n');
                     for (var i = 0; i < messages.length; i++) {
                         var item = document.createElement("div");
-                        item.innerText = messages[i];
+                        var json=JSON.parse(messages[i])
+                        item.innerText = json.time+" "+json.text
                         appendLog(item);
                     }
                 };

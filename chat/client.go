@@ -1,6 +1,9 @@
 package chat
 
 import (
+	"encoding/json"
+	"github.com/github-123456/goblog/common"
+	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/goweb"
 	"github.com/gorilla/websocket"
 	"log"
@@ -52,7 +55,8 @@ func (c *Client) readPump() {
 			println(err)
 			return
 		}
-		c.hub.broadcast <- message
+		dbservice.WsmessageInsert(string(message))
+		c.hub.broadcast <- TextMessage{Time: time.Now().Format(common.TimeLayout2), Text: string(message)}.getBytes()
 	}
 }
 
@@ -98,4 +102,17 @@ func WebSocket(ctx *goweb.Context) {
 	client.hub.register <- client
 	go client.writePump()
 	go client.readPump()
+}
+
+type TextMessage struct {
+	Time string `json:"time"`
+	Text string `json:"text"`
+}
+
+func (msg TextMessage) getBytes() []byte {
+	b, err := json.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
