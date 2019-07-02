@@ -1,11 +1,12 @@
 {{define "content"}}
     <style type="text/css">
-        .zone{
-            padding:0 20px;
-            width:100%;
+        .zone {
+            padding: 0 20px;
+            width: 100%;
             position: absolute;
             height: calc(100% - 220px);
         }
+
         .zone-left {
             position: absolute;
             width: 300px;
@@ -19,7 +20,7 @@
         }
 
         #log {
-            height:calc(100% - 50px);
+            height: calc(100% - 150px);
             border: 1px solid red;
             overflow-y: scroll;
         }
@@ -35,18 +36,27 @@
 
             </div>
             <form id="form" class="my-3">
-                <input type="text" id="msg" size="64"/>
-                <input type="submit" value="Send"/>
+                <input class="mb-2" type="text" id="name" size="10"/>
+                <input class="mb-2" type="text" id="msg" size="64"/>
+                <input class="mb-2" type="submit" value="Send"/>
             </form>
         </div>
     </div>
 {{end}}
 {{define "script"}}
+    <script src="/static/js/flashTabTitle.js"></script>
     <script type="text/javascript">
+        var id = app.uuidv4().substr(0, 8)
+        window.onclick = function () {
+            pageTitleNotification.off()
+        }
         window.onload = function () {
             var conn;
+            var name = document.getElementById("name");
             var msg = document.getElementById("msg");
             var log = document.getElementById("log");
+
+            name.setAttribute("placeholder", "匿名" + id)
 
             function appendLog(item) {
                 var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
@@ -63,13 +73,18 @@
                 if (!msg.value) {
                     return false;
                 }
-                conn.send(msg.value);
+                var data = {
+                    id: id,
+                    name: name.value,
+                    text: msg.value
+                }
+                conn.send(JSON.stringify(data));
                 msg.value = "";
                 return false;
             };
 
             if (window["WebSocket"]) {
-                conn = new WebSocket("wss://" + document.location.host + "/ws");
+                conn = new WebSocket("ws://" + document.location.host + "/ws");
                 conn.onclose = function (evt) {
                     var item = document.createElement("div");
                     item.innerHTML = "<b>Connection closed.</b>";
@@ -79,8 +94,11 @@
                     var messages = evt.data.split('\n');
                     for (var i = 0; i < messages.length; i++) {
                         var item = document.createElement("div");
-                        var json=JSON.parse(messages[i])
-                        item.innerText = json.time+" "+json.text
+                        var json = JSON.parse(messages[i])
+                        if (json.id != id) {
+                            pageTitleNotification.on("新消息")
+                        }
+                        item.innerText = json.time + " " + json.name + ":" + json.text
                         appendLog(item);
                     }
                 };

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/goweb"
@@ -39,6 +40,20 @@ type Client struct {
 	conn *websocket.Conn
 	//buffered channel of outbound messages
 	send chan []byte
+	name *string
+}
+
+func (c *Client) Name(name string) string {
+	if c.name == nil {
+		c.name = &name
+	}
+	if *c.name == name {
+		return name
+	} else {
+		newName := fmt.Sprintf("%s->%s", *c.name, name)
+		c.name = &name
+		return newName
+	}
 }
 
 func (c *Client) readPump() {
@@ -55,8 +70,10 @@ func (c *Client) readPump() {
 			println(err)
 			return
 		}
-		dbservice.WsmessageInsert(string(message))
-		c.hub.broadcast <- TextMessage{Time: time.Now().Format(common.TimeLayout2), Text: string(message)}.getBytes()
+		requestMsg := GetRequestMessage(message)
+		requestMsg.Name = c.Name(requestMsg.Name)
+		dbservice.WsmessageInsert(requestMsg.Text)
+		c.hub.broadcast <- TextMessage{Time: time.Now().Format(common.TimeLayout2), Name: requestMsg.Name, Text: requestMsg.Text, Id: requestMsg.Id}.getBytes()
 	}
 }
 
@@ -98,7 +115,7 @@ func WebSocket(ctx *goweb.Context) {
 	if err != nil {
 		panic(err)
 	}
-	client := &Client{GetHub(), conn, make(chan []byte, 256),}
+	client := &Client{hub: GetHub(), conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 	go client.writePump()
 	go client.readPump()
@@ -107,6 +124,8 @@ func WebSocket(ctx *goweb.Context) {
 type TextMessage struct {
 	Time string `json:"time"`
 	Text string `json:"text"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 func (msg TextMessage) getBytes() []byte {
@@ -115,4 +134,22 @@ func (msg TextMessage) getBytes() []byte {
 		panic(err)
 	}
 	return b
+}
+
+type RequestMessage struct {
+	Text string `json:"text"`
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func GetRequestMessage(b []byte) *RequestMessage {
+	msg := &RequestMessage{}
+	err := json.Unmarshal(b, msg)
+	if err != nil {
+		panic(err)
+	}
+	if msg.Name == "" {
+		msg.Name = "匿名" + string(msg.Id)
+	}
+	return msg
 }
