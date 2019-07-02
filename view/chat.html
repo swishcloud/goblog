@@ -27,7 +27,18 @@
 
         #form {
         }
-
+        @media (max-width: 1199px) {
+            .zone-left {
+                display: none;
+            }
+            .zone-chat {
+                height: 100%;
+                margin-left: 0px;
+            }
+            #msg{
+                width:300px;
+            }
+        }
     </style>
     <div class="zone">
         <div class="zone-left"></div>
@@ -45,9 +56,6 @@
 {{define "script"}}
     <script src="/static/js/flashTabTitle.js"></script>
     <script type="text/javascript">
-        window.onclick = function () {
-            pageTitleNotification.off()
-        }
         window.onload = function () {
             var conn;
             var msg = document.getElementById("msg");

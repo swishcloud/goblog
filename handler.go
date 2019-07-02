@@ -570,6 +570,5 @@ func EmailValidateSend(context *goweb.Context) {
 }
 func Chat(context *goweb.Context) {
 	model:=NewPageModel(GetPageTitle("IM"), config.UseHttps)
-	model.MobileCompatible=false
 	goweb.RenderPage(context, model, "view/layout.html", "view/chat.html")
 }
