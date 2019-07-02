@@ -36,7 +36,6 @@
 
             </div>
             <form id="form" class="my-3">
-                <input class="mb-2" type="text" id="name" size="10"/>
                 <input class="mb-2" type="text" id="msg" size="64"/>
                 <input class="mb-2" type="submit" value="Send"/>
             </form>
@@ -46,17 +45,13 @@
 {{define "script"}}
     <script src="/static/js/flashTabTitle.js"></script>
     <script type="text/javascript">
-        var id = app.uuidv4().substr(0, 8)
         window.onclick = function () {
             pageTitleNotification.off()
         }
         window.onload = function () {
             var conn;
-            var name = document.getElementById("name");
             var msg = document.getElementById("msg");
             var log = document.getElementById("log");
-
-            name.setAttribute("placeholder", "匿名" + id)
 
             function appendLog(item) {
                 var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
@@ -73,18 +68,13 @@
                 if (!msg.value) {
                     return false;
                 }
-                var data = {
-                    id: id,
-                    name: name.value,
-                    text: msg.value
-                }
-                conn.send(JSON.stringify(data));
+                conn.send(msg.value);
                 msg.value = "";
                 return false;
             };
 
             if (window["WebSocket"]) {
-                conn = new WebSocket("wss://" + document.location.host + "/ws");
+                conn = new WebSocket("{{if .}}wss{{else}}ws{{end}}://" + document.location.host + "/ws");
                 conn.onclose = function (evt) {
                     var item = document.createElement("div");
                     item.innerHTML = "<b>Connection closed.</b>";
@@ -95,10 +85,7 @@
                     for (var i = 0; i < messages.length; i++) {
                         var item = document.createElement("div");
                         var json = JSON.parse(messages[i])
-                        if (json.id != id) {
-                            pageTitleNotification.on("新消息")
-                        }
-                        item.innerText = json.time + " " + json.name + ":" + json.text
+                        item.innerText = json.time + " " + json.text
                         appendLog(item);
                     }
                 };

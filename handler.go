@@ -95,10 +95,11 @@ type PageModel struct {
 	Duration       int
 	LastUpdateTime string
 	MobileCompatible bool
+	Config Config
 }
 
 func NewPageModel(pageTitle string, data interface{}) *PageModel {
-	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data, LastUpdateTime: config.LastUpdateTime,MobileCompatible:true}
+	return &PageModel{WebSiteName: config.WebsiteName, PageTitle: pageTitle, Data: data, LastUpdateTime: config.LastUpdateTime,MobileCompatible:true,Config:config}
 }
 
 func (p *PageModel) Prepare(c *goweb.Context) interface{} {
@@ -568,7 +569,7 @@ func EmailValidateSend(context *goweb.Context) {
 	context.Success(nil)
 }
 func Chat(context *goweb.Context) {
-	model:=NewPageModel(GetPageTitle("IM"), nil)
+	model:=NewPageModel(GetPageTitle("IM"), config.UseHttps)
 	model.MobileCompatible=false
 	goweb.RenderPage(context, model, "view/layout.html", "view/chat.html")
 }

@@ -16,6 +16,7 @@ type Config struct {
 	SmtpUsername string
 	SmtpPassword string
 	SmtpAddr string
+	UseHttps bool
 
 	//not read from configuration file
 	LastUpdateTime    string
