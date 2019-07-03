@@ -65,7 +65,7 @@ func (c *Client) readPump() {
 			break
 		}
 		if msg.Type == 1 {
-			savePath := c.hub.FileLocation + "/chat-images/" + uuid.New().String()+msg.R1
+			savePath := c.hub.FileLocation + "/chat-images/" + uuid.New().String() + msg.R1
 			file, err := os.Create(savePath)
 			if err != nil {
 				println(err.Error())
@@ -93,8 +93,8 @@ func (c *Client) readPump() {
 type RequestHeader struct {
 	Id   string `json:"id"`
 	Type int    `json:"type"`
-	R1   string    `json:"r1"`
-	R2   string    `json:"r2"`
+	R1   string `json:"r1"`
+	R2   string `json:"r2"`
 }
 type RequestMessage struct {
 	RequestHeader

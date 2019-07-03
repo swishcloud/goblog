@@ -3,6 +3,7 @@ package chat
 import (
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/goblog/dbservice"
+	"strconv"
 	"time"
 )
 
@@ -14,7 +15,7 @@ type Hub struct {
 	//register requests from the clients
 	register chan *Client
 	//unregister requests from the clients
-	unregister chan *Client
+	unregister   chan *Client
 	FileLocation string
 }
 
@@ -36,24 +37,31 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case message := <-h.broadcast:
-			for client := range h.clients {
-				client.send <- message
-			}
+			h.Broadcast(message)
 		case regClient := <-h.register:
 			h.clients[regClient] = true
 			lastMsgs, err := GetLastMessages()
 			if err != nil {
-				b:= []byte(err.Error())
-				regClient.send <- NewMessage(2, time.Now().Format(common.TimeLayout2),&b,"").getBytes()
+				b := []byte(err.Error())
+				regClient.send <- NewMessage(2, time.Now().Format(common.TimeLayout2), &b, "").getBytes()
 			} else {
 				for _, v := range lastMsgs {
 					regClient.send <- v.getBytes()
 				}
 			}
+			b := []byte(strconv.Itoa(len(h.clients)))
+			h.Broadcast(NewMessage(3, time.Now().Format(common.TimeLayout2), &b, "").getBytes())
 		case unRegClient := <-h.unregister:
 			delete(h.clients, unRegClient)
 			close(unRegClient.send)
+			b := []byte(strconv.Itoa(len(h.clients)))
+			h.Broadcast(NewMessage(3, time.Now().Format(common.TimeLayout2), &b, "").getBytes())
 		}
+	}
+}
+func (h *Hub) Broadcast(message *[]byte) {
+	for client := range h.clients {
+		client.send <- message
 	}
 }
 
@@ -63,9 +71,9 @@ func GetLastMessages() ([]Message, error) {
 		return nil, err
 	}
 	r := []Message{}
-	for i:= len(msgDtos)-1;i>=0;i--{
-		b:=[]byte(msgDtos[i].Msg)
-		r =append(r,NewMessage(2,msgDtos[i].InsertTime,&b,""))
+	for i := len(msgDtos) - 1; i >= 0; i-- {
+		b := []byte(msgDtos[i].Msg)
+		r = append(r, NewMessage(2, msgDtos[i].InsertTime, &b, ""))
 	}
 	return r, nil
 }

@@ -11,6 +11,7 @@
             position: absolute;
             width: 300px;
             border: 1px solid red;
+            padding:10px;
             height: 100%;
         }
 
@@ -64,7 +65,11 @@
         }
     </style>
     <div class="zone">
-        <div class="zone-left"></div>
+        <div class="zone-left">
+            <div>
+                <span>在线人数:</span><span class="online-num">0</span>
+            </div>
+        </div>
         <div class="zone-chat">
             <div id="log">
                 <div class="msg d-none">
@@ -171,6 +176,9 @@
                         } else if (headerJson.type == 2) {
                             var str = new TextDecoder("utf-8").decode(reader.result.slice(headerSize + 2));
                             AddText(headerJson, str)
+                        }else if(headerJson.type == 3){
+                            var str = new TextDecoder("utf-8").decode(reader.result.slice(headerSize + 2));
+                           $(".online-num").text(str)
                         }
                     });
                     reader.readAsArrayBuffer(evt.data);
@@ -211,7 +219,7 @@
 
             function AddText(json, text) {
                 var template = $(".msg:first").clone()
-                template.find("msg-time").text(json.time)
+                template.find(".msg-time").text(json.time)
 
                 template.removeClass("d-none").find(".msg-content").html(text)
                 appendLog(template[0]);
@@ -219,7 +227,7 @@
 
             function AddImage(json, data) {
                 var template = $(".msg:first").clone()
-                template.find("msg-time").text(json.time)
+                template.find(".msg-time").text(json.time)
 
                 var img = document.createElement('img');
                 var urlObject = URL.createObjectURL(data);
