@@ -35,6 +35,7 @@ var emailSender common.EmailSender
 func init() {
 	go chat.GetHub().Run()
 	config = ReadConfig()
+	chat.GetHub().FileLocation=config.FileLocation
 	db, _ = sql.Open("mysql", config.SqlDataSourceName)
 	dbservice.SetDb(db)
 

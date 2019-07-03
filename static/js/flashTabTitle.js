@@ -3,13 +3,12 @@
   window.pageTitleNotification = (function () {
 
       var config = {
-          currentTitle: null,
+          currentTitle: document.title,
           interval: null
       };
 
       var on = function (notificationText, intervalSpeed) {
           if (!config.interval) {
-              config.currentTitle = document.title;
               config.interval = window.setInterval(function() {
                   document.title = (config.currentTitle === document.title)
                       ? notificationText

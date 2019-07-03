@@ -318,15 +318,16 @@ func ResetAccessFailedCount(id int) {
 	}
 }
 
-func WsmessageInsert(msg string) {
+func WsmessageInsert(msg string) error{
 	_, err := db.Exec("insert into wsmessage (insertTime,msg,isDeleted) values(?,?,?)", time.Now(), msg, 0)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	return nil
 }
 
 func WsmessageTop() ([]WsmessageDto,error) {
-	rows, err := db.Query("select  insertTime,msg from goblog.wsmessage where isDeleted=0 and insertTime> (UTC_TIMESTAMP() - INTERVAL 60 MINUTE) limit 100")
+	rows, err := db.Query("select  insertTime,msg from goblog.wsmessage where isDeleted=0 and insertTime> (UTC_TIMESTAMP() - INTERVAL 60 MINUTE) order by  insertTime desc limit 100")
 	if err != nil {
 		return nil,err
 	}

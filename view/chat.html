@@ -23,20 +23,43 @@
             height: calc(100% - 150px);
             border: 1px solid red;
             overflow-y: scroll;
+            padding: 10px;
         }
 
         #form {
         }
+
+        .msg {
+            margin-bottom: 5px;
+        }
+
+        .msg-img {
+            max-height: 200px;
+        }
+
+        #image{
+            cursor:pointer;
+        }
+        #file {
+            display: none;
+        }
+
         @media (max-width: 1199px) {
             .zone-left {
                 display: none;
             }
+
             .zone-chat {
                 height: 100%;
                 margin-left: 0px;
             }
-            #msg{
-                width:300px;
+
+            #msg {
+                width: 300px;
+            }
+
+            .msg-img {
+                max-height: 100px;
             }
         }
     </style>
@@ -44,12 +67,21 @@
         <div class="zone-left"></div>
         <div class="zone-chat">
             <div id="log">
-
+                <div class="msg d-none">
+                    <div><span class="msg-name mr-2">匿名</span><span class="msg-time">21:11:11</span></div>
+                    <div class="msg-content">
+                        aaa
+                    </div>
+                </div>
             </div>
-            <form id="form" class="my-3">
+            <div id="form" class="mb-3">
+                <div class="my-2">
+                    <i class="fa fa-images" id="image"></i>
+                </div>
+                <input class="mb-2" type="file" id="file" accept=".jpg,.jpeg,.png,.jif"/>
                 <input class="mb-2" type="text" id="msg" size="64"/>
-                <input class="mb-2" type="submit" value="Send"/>
-            </form>
+                <input class="mb-2" id="send" type="button" value="Send"/>
+            </div>
         </div>
     </div>
 {{end}}
@@ -57,9 +89,16 @@
     <script src="/static/js/flashTabTitle.js"></script>
     <script type="text/javascript">
         window.onload = function () {
+            var id=app.uuidv4()
             var conn;
+            var supportedImageTypes = [".jpg", ".jpeg", ".png", ".jif"]
+            var file = document.getElementById("file");
             var msg = document.getElementById("msg");
             var log = document.getElementById("log");
+
+            document.onclick=function () {
+                pageTitleNotification.off()
+            }
 
             function appendLog(item) {
                 var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
@@ -69,14 +108,44 @@
                 }
             }
 
-            document.getElementById("form").onsubmit = function () {
+            file.onchange = function () {
+                if (!conn) {
+                    return;
+                }
+                if (file.files.length == 0)
+                    return
+                var fileName= file.files[0].name
+                var fileTypeMatch =fileName.match(/\..+/)
+                if (fileTypeMatch == null || supportedImageTypes.indexOf(fileTypeMatch[0]) == -1) {
+                    alert("不支持的图片格式")
+                    return
+                }
+
+                var reader = new FileReader();
+                reader.readAsArrayBuffer(file.files[0]);
+                reader.onload = function loaded(evt) {
+                    var result = evt.target.result;
+                    var header=getHeaderByteArray(1, fileName)
+                    conn.send(composeMessageByteArray(header,new Int8Array(result)));
+                }
+                file.value = null
+            }
+
+            document.getElementById("image").onclick = function () {
+                file.click()
+            }
+
+            document.getElementById("send").onclick = function () {
                 if (!conn) {
                     return false;
                 }
                 if (!msg.value) {
                     return false;
                 }
-                conn.send(msg.value);
+                var enc = new TextEncoder(); // always utf-8
+                var u8a = enc.encode(msg.value);
+                var header=getHeaderByteArray(2)
+                conn.send(composeMessageByteArray(header,u8a));
                 msg.value = "";
                 return false;
             };
@@ -89,19 +158,78 @@
                     appendLog(item);
                 };
                 conn.onmessage = function (evt) {
-                    var messages = evt.data.split('\n');
-                    for (var i = 0; i < messages.length; i++) {
-                        var item = document.createElement("div");
-                        var json = JSON.parse(messages[i])
-                        item.innerText = json.time + " " + json.text
-                        appendLog(item);
-                    }
+                    var reader = new FileReader();
+                    reader.addEventListener("loadend", function () {
+                        var headerSize = parseInt(new TextDecoder("utf-8").decode(reader.result.slice(0, 2)))
+                        var headerStr = new TextDecoder("utf-8").decode(reader.result.slice(2, headerSize + 2))
+                        var headerJson = JSON.parse(headerStr.toString().trim())
+                        if(headerJson.id!=id&&headerJson.id!=""){
+                            pageTitleNotification.on("新消息")
+                        }
+                        if (headerJson.type == 1) {
+                            AddImage(headerJson, evt.data.slice(headerSize + 2))
+                        } else if (headerJson.type == 2) {
+                            var str = new TextDecoder("utf-8").decode(reader.result.slice(headerSize + 2));
+                            AddText(headerJson, str)
+                        }
+                    });
+                    reader.readAsArrayBuffer(evt.data);
                 };
             } else {
                 var item = document.createElement("div");
                 item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
                 appendLog(item);
             }
-        };
+
+            function getHeaderByteArray(type,r1,r2) {
+                var obj={
+                    type:type,
+                    id:id,
+                    r1:r1,
+                    r2:r2
+                }
+                var json=JSON.stringify(obj)
+                var enc = new TextEncoder();
+                var u8a = enc.encode(json);
+                return u8a
+            }
+            
+            function composeMessageByteArray(header,content) {
+                var buffer = new ArrayBuffer(3 + header.byteLength+content.byteLength);
+                var view = new Int8Array(buffer);
+                var enc = new TextEncoder();
+                var u8a = enc.encode(header.byteLength.toString());
+                if (u8a.byteLength>3){
+                    throw Error("can not exceed 3")
+                }
+                view.set(u8a)
+                view.set(header,3)
+                view.set(content,3+header.length)
+                return buffer
+            }
+
+
+            function AddText(json, text) {
+                var template = $(".msg:first").clone()
+                template.find("msg-time").text(json.time)
+
+                template.removeClass("d-none").find(".msg-content").html(text)
+                appendLog(template[0]);
+            }
+
+            function AddImage(json, data) {
+                var template = $(".msg:first").clone()
+                template.find("msg-time").text(json.time)
+
+                var img = document.createElement('img');
+                var urlObject = URL.createObjectURL(data);
+                img.src = urlObject;
+                img.classList.add("msg-img")
+
+                template.removeClass("d-none").find(".msg-content").html(img.outerHTML)
+                appendLog(template[0]);
+            }
+        }
+        ;
     </script>
 {{end}}
