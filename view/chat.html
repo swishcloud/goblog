@@ -78,7 +78,7 @@
                 <div class="my-2">
                     <i class="fa fa-images" id="image"></i>
                 </div>
-                <input class="mb-2" type="file" id="file" accept=".jpg,.jpeg,.png,.jif"/>
+                <input class="mb-2" type="file" id="file" accept=".jpg,.jpeg,.png,.gif"/>
                 <input class="mb-2" type="text" id="msg" size="64"/>
                 <input class="mb-2" id="send" type="button" value="Send"/>
             </div>
@@ -91,7 +91,7 @@
         window.onload = function () {
             var id=app.uuidv4()
             var conn;
-            var supportedImageTypes = [".jpg", ".jpeg", ".png", ".jif"]
+            var supportedImageTypes = [".jpg", ".jpeg", ".png", ".gif"]
             var file = document.getElementById("file");
             var msg = document.getElementById("msg");
             var log = document.getElementById("log");
