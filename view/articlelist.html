@@ -66,7 +66,8 @@
         }
     </style>
     <form class="form-inline mb-3">
-        <input class="form-control mr-sm-2" type="search" placeholder="关键字" aria-label="Search" name="key" value="{{.Key}}">
+        <input class="form-control mr-sm-2" type="search" placeholder="关键字" aria-label="Search" name="key"
+               value="{{.Key}}">
         <button class="btn btn-outline-success my-2 my-sm-0" type="submit">搜索</button>
     </form>
     {{range .Articles}}
@@ -85,21 +86,23 @@
     {{end}}
 {{end}}
 {{define "right"}}
-    <div class="sidebar-component clearfix">
-        <h5>友情链接</h5>
-        <div>
-            <ul>
-                <li><a href="#">A个人博客</a></li>
-                <li><a href="#">ABC个人博客</a></li>
-                <li><a href="#">A个人博客</a></li>
-                <li><a href="#">ABC个人博客</a></li>
-                <li><a href="#">A个人博客</a></li>
-                <li><a href="#">ABC个人博客</a></li>
-                <li><a href="#">A个人博客</a></li>
-                <li><a href="#">ABC个人博客</a></li>
-            </ul>
+    {{if false}}
+        <div class="sidebar-component clearfix">
+            <h5>友情链接</h5>
+            <div>
+                <ul>
+                    <li><a href="#">A个人博客</a></li>
+                    <li><a href="#">ABC个人博客</a></li>
+                    <li><a href="#">A个人博客</a></li>
+                    <li><a href="#">ABC个人博客</a></li>
+                    <li><a href="#">A个人博客</a></li>
+                    <li><a href="#">ABC个人博客</a></li>
+                    <li><a href="#">A个人博客</a></li>
+                    <li><a href="#">ABC个人博客</a></li>
+                </ul>
+            </div>
         </div>
-    </div>
+    {{end}}
 {{end}}
 {{define "script"}}
 {{end}}
