@@ -98,7 +98,7 @@
                 app.closeError($('#error'))
 
                 var html = marked(simplemde.value(), {breaks: true, sanitize: true});
-                var summary = html.replace(/(<([^>]+)>)/ig, "");
+                var summary = html.replace(/(<([^>]+)>)/ig, " ");
                 $("#html").val(html)
                 $("#summary").val(summary)
 
