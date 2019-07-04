@@ -222,12 +222,6 @@ func ArticleSave(context *goweb.Context) {
 		cover = &c
 	}
 
-	summaryRunes := []rune(summary)
-	if len(summaryRunes) > 200 {
-		summaryRunes = summaryRunes[:200]
-		summary = string(summaryRunes)
-	}
-
 	intArticleType, err := strconv.Atoi(articleType)
 	if err != nil {
 		panic(err)
@@ -245,9 +239,7 @@ func ArticleSave(context *goweb.Context) {
 		newArticleLastInsertId := superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey, cover))["NewArticleLastInsertId"].(int64)
 		intId = int(newArticleLastInsertId)
 	} else {
-		rawArticle := dbservice.GetArticle(intId)
-		superdb.ExecuteTransaction(db, dbservice.NewArticle(rawArticle.Title, rawArticle.Summary, rawArticle.Html, rawArticle.Content, rawArticle.UserId, 4, rawArticle.CategoryId, config.PostKey, rawArticle.Cover),
-			dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id, cover))
+		superdb.ExecuteTransaction(db,dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id, cover))
 	}
 	context.Success(intId)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/gostudy/aesencryption"
+	externalCommon "github.com/github-123456/gostudy/common"
 	"github.com/github-123456/gostudy/superdb"
 	"strconv"
 	"time"
@@ -143,6 +144,7 @@ func NewArticle(title string, summary string, html string, content string, userI
 			summary = aesencryption.Encrypt([]byte(key), summary)
 			html = aesencryption.Encrypt([]byte(key), html)
 		}
+		summary = externalCommon.StringLimitLen(summary, 200)
 		id, err := tx.MustExec(`insert into article (title,summary,html,content,userId,insertTime,updateTime,isDeleted,isBanned,type,categoryId,cover)values(?,?,?,?,?,?,?,?,?,?,?,?)`, title, summary, html, content, userId, time.Now(), time.Now(), 0, 0, articleType, categoryId, cover).LastInsertId()
 		if err != nil {
 			panic(err)
@@ -152,6 +154,7 @@ func NewArticle(title string, summary string, html string, content string, userI
 }
 func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int, cover *string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
+		articleBackup(id, content,key)(tx)
 		if articleType == 3 {
 			user := GetUser(userId)
 			if user.Level2pwd == nil {
@@ -163,7 +166,14 @@ func UpdateArticle(id int, title string, summary string, html string, content st
 		} else if articleType != 1 && articleType != 2 {
 			panic(fmt.Sprintf("articleType %d is invalid", articleType))
 		}
+		summary = externalCommon.StringLimitLen(summary, 200)
 		tx.MustExec(`update article set title=?,summary=?,html=?,content=?,type=?,categoryId=?,updateTime=?,cover=? where id=?`, title, summary, html, content, articleType, categoryId, time.Now(), cover, id)
+	}
+}
+
+func articleBackup(articleId int, content string,key string) superdb.DbTask {
+	return func(tx *superdb.Tx) {
+		tx.MustExec("insert into articleBackup (content,articleId,insertTime)values(?,?,?)",  aesencryption.Encrypt([]byte(key), content), articleId,time.Now())
 	}
 }
 
@@ -318,7 +328,7 @@ func ResetAccessFailedCount(id int) {
 	}
 }
 
-func WsmessageInsert(msg string) error{
+func WsmessageInsert(msg string) error {
 	_, err := db.Exec("insert into wsmessage (insertTime,msg,isDeleted) values(?,?,?)", time.Now(), msg, 0)
 	if err != nil {
 		return err
@@ -326,10 +336,10 @@ func WsmessageInsert(msg string) error{
 	return nil
 }
 
-func WsmessageTop() ([]WsmessageDto,error) {
+func WsmessageTop() ([]WsmessageDto, error) {
 	rows, err := db.Query("select  insertTime,msg from goblog.wsmessage where isDeleted=0 and insertTime> (UTC_TIMESTAMP() - INTERVAL 60 MINUTE) order by  insertTime desc limit 100")
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	dtos := []WsmessageDto{}
 	for rows.Next() {
@@ -337,11 +347,11 @@ func WsmessageTop() ([]WsmessageDto,error) {
 			insertTime string
 			msg        string
 		)
-		err:=rows.Scan(&insertTime, &msg)
+		err := rows.Scan(&insertTime, &msg)
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
-		dtos = append(dtos, WsmessageDto{InsertTime: common.ConvUtcToLocal(insertTime,common.TimeLayoutMysqlDateTime,common.TimeLayout2), Msg: msg})
+		dtos = append(dtos, WsmessageDto{InsertTime: common.ConvUtcToLocal(insertTime, common.TimeLayoutMysqlDateTime, common.TimeLayout2), Msg: msg})
 	}
-	return dtos,nil
+	return dtos, nil
 }
