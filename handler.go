@@ -452,7 +452,7 @@ func CategoryDelete(context *goweb.Context) {
 func ArticleDelete(context *goweb.Context) {
 	id := context.Request.FormValue("id")
 	intId, _ := strconv.Atoi(id)
-	superdb.ExecuteTransaction(db, dbservice.ArticleDelete(intId, MustGetLoginUser(context).Id))
+	superdb.ExecuteTransaction(db, dbservice.ArticleDelete(intId, MustGetLoginUser(context).Id,config.PostKey))
 	context.Success(nil)
 }
 

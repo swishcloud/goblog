@@ -197,14 +197,13 @@ func GetArticle(id int) *ArticleDto {
 	return &ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 
-func ArticleDelete(id, loginUserId int) superdb.DbTask {
+func ArticleDelete(id, loginUserId int,key string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-
 		var article = GetArticle(id)
 		if article.UserId != loginUserId {
 			panic("no permission")
 		}
-		tx.MustExec("update article set isDeleted=1 where id=?", id)
+		tx.MustExec("update article set isDeleted=1,content=?,html=?,summary=? where id=?", aesencryption.Encrypt([]byte(key), article.Content), aesencryption.Encrypt([]byte(key), article.Html), aesencryption.Encrypt([]byte(key), article.Summary),id)
 	}
 }
 
