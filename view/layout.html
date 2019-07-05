@@ -22,9 +22,6 @@
         </div>
     </div>
     <ul class="menu">
-        <li class="menu-item">
-            <a href="/chat">IM</a>
-        </li>
         {{if eq .User.Id 0}}
             <li class="menu-item">
                 <a href="/login?redirectUri={{.RequestUri}}">登录</a>
@@ -58,11 +55,11 @@
 </div>
 <div class="footer" style="padding:25px 0;text-align: center;background-color: #282828;color:white;margin-top: 20px;position: absolute;bottom: 0;width:100%;">
     <div>
+        <a href="/chat" class="text-white mr-2" target="_blank">IM</a>
         <a href="mailto:flwwd@outlook.com" class="text-white mr-2">邮件</a>
-        <a href="https://github.com/xiaozemin/goblog" class="text-white" target="_blank">Github</a>
     </div>
     <div style="color: #73777a;font-size: 14px;">
-        <div><span class="mr-2">页面处理耗时:{{.Duration}}ss </span><span>版本更新时间:{{.LastUpdateTime}}</span></div>
+        <div><span class="mr-2">建议使用chrome浏览器以获得最佳体验</span></div>
         <div><span>Copyright © 2019 {{.WebSiteName}} All Rights Reserved</span></div>
     </div>
 </div>
