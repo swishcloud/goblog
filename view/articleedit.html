@@ -70,7 +70,8 @@
                 try{
                     let result=hljs.highlight(lang, code, true, null)
                     return result.value
-                }catch{
+                }catch(e){
+                    console.log(e)
                     return code
                 }
             }
