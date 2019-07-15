@@ -536,7 +536,10 @@ func Upload(context *goweb.Context) {
 }
 func EmailValidate(context *goweb.Context) {
 	email := context.Request.Form.Get("email")
-	code := context.Request.Form.Get("code")
+	code,err :=url.QueryUnescape(context.Request.Form.Get("code"))
+	if err!=nil{
+		panic(err)
+	}
 	user := dbservice.GetUserByEmail(email)
 	if user != nil {
 		if user.EmailConfirmed == 0 {
