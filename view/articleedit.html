@@ -81,7 +81,7 @@
         var simplemde = new SimpleMDE({
             element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,
             previewRender: function (plainText) {
-                return marked(plainText, {breaks: true, sanitize: true}); // Returns HTML from a custom parser
+                return marked(plainText, {breaks: true}); // Returns HTML from a custom parser
             }
         });
         inlineAttachment.editors.codemirror4.attach(simplemde.codemirror, {
@@ -98,7 +98,7 @@
             before: function () {
                 app.closeError($('#error'))
 
-                var html = marked(simplemde.value(), {breaks: true, sanitize: true});
+                var html = marked(simplemde.value(), {breaks: true});
                 var summary = html.replace(/(<([^>]+)>)/ig, " ");
                 $("#html").val(html)
                 $("#summary").val(summary)

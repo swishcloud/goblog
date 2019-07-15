@@ -390,7 +390,10 @@ func RegisterPost(context *goweb.Context) {
 func sendValidateEmail(context *goweb.Context, userId int) {
 	protocol := "https"
 	user := dbservice.GetUser(userId)
-	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email=flwwd@outlook.com&code=" + url.QueryEscape(*user.SecurityStamp)
+	if user.Email==nil{
+		panic("the user does not have a email")
+	}
+	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email="+*user.Email+"&code=" + url.QueryEscape(*user.SecurityStamp)
 	emailSender.SendEmail(*user.Email, "邮箱激活", fmt.Sprintf("<html><body>"+
 		"%s，您好:<br/><br/>"+
 		"感谢您注册%s,您的登录邮箱为%s,请点击以下链接激活您的邮箱地址：<br/><br/>"+
@@ -536,10 +539,7 @@ func Upload(context *goweb.Context) {
 }
 func EmailValidate(context *goweb.Context) {
 	email := context.Request.Form.Get("email")
-	code,err :=url.QueryUnescape(context.Request.Form.Get("code"))
-	if err!=nil{
-		panic(err)
-	}
+	code := context.Request.Form.Get("code")
 	user := dbservice.GetUserByEmail(email)
 	if user != nil {
 		if user.EmailConfirmed == 0 {
