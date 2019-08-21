@@ -24,8 +24,8 @@ type Config struct {
 
 var config Config
 
-func ReadConfig() Config {
-	file, _ := os.Open("conf.json")
+func ReadConfig(filePath string) Config {
+	file, _ := os.Open(filePath)
 	defer file.Close()
 	dec := json.NewDecoder(file)
 	var c Config

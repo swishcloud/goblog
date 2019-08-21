@@ -2,7 +2,7 @@ package chat
 
 import (
 	"github.com/github-123456/goblog/common"
-	"github.com/github-123456/goblog/dbservice"
+	"github.com/xiaozemin/goblog/dbservice"
 	"strconv"
 	"time"
 )

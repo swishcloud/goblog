@@ -1,0 +1,13 @@
+{
+  "FileLocation": "/workspace/goblog/file",
+  "Host":"0.0.0.0:8080",
+  "SqlDataSourceName":"develop:|qT/Ux[n7@tcp(47.92.105.16:3306)/goblog_develop?multiStatements=true",
+  "WebsiteName":"GOBLOG",
+  "ConcurrenceNum":2,
+  "Key": "Fv`Oj^M-DG_OP:9_m6l;%\"8;1D(hx$Ie",
+  "PostKey": "KEt?Yi4X`Q|.mF5%DS1i1,8T2^5fq*|P",
+  "SmtpUsername": "",
+  "SmtpPassword": "",
+  "SmtpAddr": "",
+  "UseHttps": false
+}

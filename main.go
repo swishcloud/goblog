@@ -4,23 +4,23 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"github.com/github-123456/goblog/chat"
-	"github.com/github-123456/goblog/common"
-	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/goweb"
+	_ "github.com/golang-migrate/migrate/database/postgres"
+	_ "github.com/golang-migrate/migrate/source/github"
+	"github.com/xiaozemin/goblog/chat"
+	"github.com/xiaozemin/goblog/common"
+	"github.com/xiaozemin/goblog/dbservice"
 	"net/http"
 )
 
 func main() {
-	addr := flag.String("addr", config.Host, "http service address")
-	flag.Parse()
 	fmt.Println("listening on:", config.Host)
 	g := goweb.Default()
 	g.ErrorPageFunc = ErrorPage
 	g.ConcurrenceNumSem = make(chan int, config.ConcurrenceNum)
 	BindHandlers(&g.RouterGroup)
 	server := http.Server{
-		Addr:    *addr,
+		Addr:    config.Host,
 		Handler: g,
 	}
 	err := server.ListenAndServe()
@@ -33,12 +33,12 @@ var db *sql.DB
 var emailSender common.EmailSender
 
 func init() {
+	configPath := flag.String("config","config-development.json", "application configuration file")
+	flag.Parse()
+	config = ReadConfig(*configPath)
+	dbservice.InitializeDb(config.SqlDataSourceName)
 	go chat.GetHub().Run()
-	config = ReadConfig()
 	chat.GetHub().FileLocation=config.FileLocation
-	db, _ = sql.Open("mysql", config.SqlDataSourceName)
-	dbservice.SetDb(db)
-
 	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr, Name: config.WebsiteName}
 }
 

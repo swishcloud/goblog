@@ -6,7 +6,13 @@ import (
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/gostudy/aesencryption"
 	externalCommon "github.com/github-123456/gostudy/common"
+	"github.com/github-123456/gostudy/keygenerator"
 	"github.com/github-123456/gostudy/superdb"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang-migrate/migrate"
+	"github.com/golang-migrate/migrate/database/mysql"
+	_ "github.com/golang-migrate/migrate/source/file"
+	"log"
 	"strconv"
 	"time"
 )
@@ -23,6 +29,41 @@ type dbServiceError struct {
 
 func (err dbServiceError) Error() string {
 	return err.error
+}
+
+func InitializeDb(connInfo string) {
+	db, _ = sql.Open("mysql", connInfo)
+	err := db.Ping()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	driver, err := mysql.WithInstance(db, &mysql.Config{})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migration",
+		"mysql",
+		driver,
+	)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	err = m.Steps(2)
+	log.Println("successfully updated database")
+	SetDb(db)
+	go initializeData()
+}
+
+func initializeData()  {
+	no_user_existence:= superdb.ExecuteTransaction(db, func(tx *superdb.Tx) {
+		tx.Data["no_user_existence"]=!tx.Any(`select * from user`)
+	})["no_user_existence"].(bool)
+
+	if no_user_existence{
+		log.Println("creating new Admin user with password 123456 for the brand new database")
+		superdb.ExecuteTransaction(db, NewUser("admin", "123456","admin@null.com",1))
+	}
 }
 
 func GetArticles(articleType, userId int, key string, withLockedContext bool, categoryName string) []ArticleDto {
@@ -154,7 +195,7 @@ func NewArticle(title string, summary string, html string, content string, userI
 }
 func UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int, cover *string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-		articleBackup(id, content,key)(tx)
+		articleBackup(id, content, key)(tx)
 		if articleType == 3 {
 			user := GetUser(userId)
 			if user.Level2pwd == nil {
@@ -171,9 +212,9 @@ func UpdateArticle(id int, title string, summary string, html string, content st
 	}
 }
 
-func articleBackup(articleId int, content string,key string) superdb.DbTask {
+func articleBackup(articleId int, content string, key string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
-		tx.MustExec("insert into articleBackup (content,articleId,insertTime)values(?,?,?)",  aesencryption.Encrypt([]byte(key), content), articleId,time.Now())
+		tx.MustExec("insert into articleBackup (content,articleId,insertTime)values(?,?,?)", aesencryption.Encrypt([]byte(key), content), articleId, time.Now())
 	}
 }
 
@@ -197,13 +238,13 @@ func GetArticle(id int) *ArticleDto {
 	return &ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 
-func ArticleDelete(id, loginUserId int,key string) superdb.DbTask {
+func ArticleDelete(id, loginUserId int, key string) superdb.DbTask {
 	return func(tx *superdb.Tx) {
 		var article = GetArticle(id)
 		if article.UserId != loginUserId {
 			panic("no permission")
 		}
-		tx.MustExec("update article set isDeleted=1,content=?,html=?,summary=? where id=?", aesencryption.Encrypt([]byte(key), article.Content), aesencryption.Encrypt([]byte(key), article.Html), aesencryption.Encrypt([]byte(key), article.Summary),id)
+		tx.MustExec("update article set isDeleted=1,content=?,html=?,summary=? where id=?", aesencryption.Encrypt([]byte(key), article.Content), aesencryption.Encrypt([]byte(key), article.Html), aesencryption.Encrypt([]byte(key), article.Summary), id)
 	}
 }
 
@@ -246,9 +287,10 @@ func NewCategory(name string, userId int) superdb.DbTask {
 	}
 }
 
-func NewUser(userName, password string, email string, securityStamp string) superdb.DbTask {
+func NewUser(userName, password string, email string,emailConfirmed int) superdb.DbTask {
+	securityStamp := keygenerator.NewKey(32)
 	return func(tx *superdb.Tx) {
-		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email)values(?,?,?,?,?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0, 0, securityStamp, 0, email)
+		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email)values(?,?,?,?,?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0, 0, securityStamp, emailConfirmed, email)
 		lastId, err := r.LastInsertId()
 		if err != nil {
 			panic(err)

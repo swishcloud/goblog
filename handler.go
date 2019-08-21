@@ -3,15 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/github-123456/goblog/chat"
-	"github.com/github-123456/goblog/common"
-	"github.com/github-123456/goblog/dbservice"
 	"github.com/github-123456/gostudy/aesencryption"
-	"github.com/github-123456/gostudy/keygenerator"
 	"github.com/github-123456/gostudy/superdb"
 	"github.com/github-123456/goweb"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	"github.com/xiaozemin/goblog/chat"
+	"github.com/xiaozemin/goblog/common"
+	"github.com/xiaozemin/goblog/dbservice"
 	"html/template"
 	"io"
 	"net/http"
@@ -379,8 +378,7 @@ func RegisterPost(context *goweb.Context) {
 	username := context.Request.PostForm.Get("username")
 	password := context.Request.PostForm.Get("password")
 	email := context.Request.PostForm.Get("email")
-	securityStamp := keygenerator.NewKey(32)
-	newUserId := superdb.ExecuteTransaction(db, dbservice.NewUser(username, password, email, securityStamp))["newUserId"].(int)
+	newUserId := superdb.ExecuteTransaction(db, dbservice.NewUser(username, password, email,0))["newUserId"].(int)
 	sendValidateEmail(context, newUserId)
 	context.Success(struct {
 		RedirectUri string `json:"redirectUri"`
