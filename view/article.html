@@ -21,19 +21,24 @@
 {{end}}
 {{define "script"}}
     <script>
-        var id={{.Article.Id}}
-        $("#delete").click(function () {
-            if (confirm("确定要删除吗?")) {
-                $.post("/articledelete", {id: id}, function (res) {
+        var id ={{.Article.Id}}
+            $("#delete").click(function () {
+                if (confirm("确定要删除吗?")) {
+                    $.post("/articledelete", {id: id}, function (res) {
                     debugger
-                    if (res.error) {
-                        alert(res.error)
-                    } else {
-                        window.location.href="/"
-                    }
-                })
-            }
-        })
-        $(".article-content a").attr("target","_blank")
+                        if (res.error) {
+                            alert(res.error)
+                        } else {
+                            window.location.href = "/"
+                        }
+                    })
+                }
+            })
+        $(".article-content a").attr("target", "_blank")
+        {{if eq .Article.ArticleType 3}}
+        setTimeout(function () {
+           location.replace("/articlelock?id={{.Article.Id}}&t=2")
+        }, 1000 * 60)
+        {{end}}
     </script>
 {{end}}

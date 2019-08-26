@@ -31,7 +31,7 @@ func (err dbServiceError) Error() string {
 	return err.error
 }
 
-func InitializeDb(connInfo string) {
+func InitializeDb(connInfo string)*sql.DB {
 	db, _ = sql.Open("mysql", connInfo)
 	err := db.Ping()
 	if err != nil {
@@ -53,6 +53,7 @@ func InitializeDb(connInfo string) {
 	log.Println("successfully updated database")
 	SetDb(db)
 	go initializeData()
+	return db
 }
 
 func initializeData()  {

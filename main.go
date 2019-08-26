@@ -36,7 +36,7 @@ func init() {
 	configPath := flag.String("config","config-development.json", "application configuration file")
 	flag.Parse()
 	config = ReadConfig(*configPath)
-	dbservice.InitializeDb(config.SqlDataSourceName)
+	db=dbservice.InitializeDb(config.SqlDataSourceName)
 	go chat.GetHub().Run()
 	chat.GetHub().FileLocation=config.FileLocation
 	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr, Name: config.WebsiteName}
