@@ -10,7 +10,7 @@ script:
   - docker ps
 deploy:
   provider: script
-  script: bash scripts/deploy.sh $TRAVIS_COMMIT
+  script: bash scripts/deploy.sh $DOCKER_USERNAME $DOCKER_PASSWORD $TRAVIS_COMMIT
   on:
     branch: master
 env:
