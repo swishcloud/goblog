@@ -1,7 +1,3 @@
-$DOCKER_USERNAME=$1
-$DOCKER_PASSWORD=$2
-$TRAVIS_COMMIT=$3
-
 echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 docker push mydocker3013/goblog:$TRAVIS_COMMIT
 openssl aes-256-cbc -k "$super_secret_password" -in super_secret.txt.enc -out super_secret.txt -d
