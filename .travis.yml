@@ -5,12 +5,12 @@ go:
   - 1.12.x
 script:
   - CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' .
-  - docker build -t goblog .
-  - docker run -d goblog
+  - docker build -t mydocker3013/goblog:$TRAVIS_COMMIT .
+  - docker run -d mydocker3013/goblog:$TRAVIS_COMMIT
   - docker ps
 deploy:
   provider: script
-  script: bash scripts/deploy.sh
+  script: bash scripts/deploy.sh $DOCKER_USERNAME $DOCKER_PASSWORD $TRAVIS_COMMIT
   on:
     branch: master
 env:
