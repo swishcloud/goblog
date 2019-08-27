@@ -8,8 +8,6 @@ script:
   - docker build -t mydocker3013/goblog:$TRAVIS_COMMIT .
   - docker run -d mydocker3013/goblog:$TRAVIS_COMMIT
   - docker ps
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - docker push mydocker3013/goblog:$TRAVIS_COMMIT
 deploy:
   provider: script
   script: bash scripts/deploy.sh $TRAVIS_COMMIT
