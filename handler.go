@@ -168,7 +168,7 @@ func ArticleList(context *goweb.Context) {
 		key = ""
 	}
 	articles := dbservice.GetArticles(1, 0, key, false, "")
-	goweb.RenderPage(context, NewPageModel("一念自律，一念自纵。", struct {
+	goweb.RenderPage(context, NewPageModel(config.WebsiteName, struct {
 		Key      string
 		Articles []dbservice.ArticleDto
 	}{Key: key, Articles: articles}), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
