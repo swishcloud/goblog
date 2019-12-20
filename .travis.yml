@@ -1,30 +1,21 @@
 language: go
+
 services:
   - docker
-go:
-  - 1.12.x
+
+before_install:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - sudo apt-get install sshpass
+script:
+  - ./docker/build.sh
 deploy:
   provider: script
   script: bash scripts/deploy.sh
   on:
     branch: master
-script:
-  - CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o app $PACKAGE_PATH
-  - mkdir docker/dist
-  - cp app docker/dist
-  - cp config-development.json docker/dist
-  - cp -r migration docker/dist
-  - cp -r static docker/dist
-  - cp -r view docker/dist
-  #copy other needed files
-  - docker build -t $IMAGE_TAG ./docker
-  - docker run -d $IMAGE_TAG
-  - docker ps
 env:
   matrix:
-    - PACKAGE_PATH=.
-      IMAGE_TAG=mydocker3013/goblog:$TRAVIS_COMMIT
+    - SSH_CMMAND="$SSH_DEPLOY"
+      SSH_DEPLOY_PASSWORD="$SSH_DEPLOY_PASSWORD"
   global:
-    secure: 3Eb2/w4ZVmSttGnokAtcSFTaoOZm1N618zb9AH5N/e7QTQ7mYfXIU28MYhBimYbGNQsLGWd7/GhpXhkfj+0aE2SbQoIPZOuuEMW91BNmh6ovM7hHUoICyy1L1tRW8tVpm26EdiPAeFKbWQboLsmlQSoJOiAL9ZL+t19khzF+h7xB+eFKkIEMOYCN+vUT/5M5cYIPInr5q1jqkDQA2mlFMAl3JuN+FSvfxdxaHV6zr4wCnK93wpLej4ngkHvPUORwLWfpUw6s5hlpiHxRyqBFZJLcwc2Xf5xPcrrRjJcKiAkvtOWv46ZK9LQPFW4c7696aegoQLzwXS66TGfgs/fEMB8pmBnbHH8auNVtTIErcXQ+lwRbmhSNHpKV/yGRgeTBwrOcGJZR5A9xQp84tqSK2kj5G+5YOjG20l75iSBzJtlIi09Yjy0dkdy7MFWL2WtyvJc/Y5bFp3qH/ffHETUChrwk8FOpfUetw5fecpAHs6TrizzVXkZ8f5xw2TkVUIDwEs2FnZblJjcdDoXAAdcwbcGTTQ3XN7HEoE2fqLKsiYku8DI4yaj0wvpB8rGx/WvnZhdXuT9+MmAEmLW9Cw9e4p8Zd307Ql9isglmqt+uDGOFWJi7H1O7U5YWp2s+yGVpzLXl0A16tPQDIBnEVIVaz23TUkDQ+Y2heE2MbeCxRfo=
-before_install:
-  - openssl aes-256-cbc -k "$super_secret_password" -in super_secret.txt.enc -out super_secret.txt -d
+    - IMAGE_TAG=mydocker3013/goblog:$TRAVIS_COMMIT
