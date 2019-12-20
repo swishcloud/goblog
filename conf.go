@@ -25,9 +25,11 @@ type Config struct {
 	OAuthSecret       string
 
 	//not read from configuration file
-	LastUpdateTime string
-	OAUTH2Config   *oauth2.Config
-	JWKJsonUrl     string
+	LastUpdateTime         string
+	OAUTH2Config           *oauth2.Config
+	JWKJsonUrl             string
+	OAuthLogoutRedirectUrl string
+	OAuthLogoutUrl         string
 }
 
 var config Config

@@ -9,10 +9,10 @@ import (
 
 	_ "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/github"
+	"github.com/swishcloud/goblog/chat"
+	"github.com/swishcloud/goblog/common"
+	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/goweb"
-	"github.com/xiaozemin/goblog/chat"
-	"github.com/xiaozemin/goblog/common"
-	"github.com/swishcloud/goblog/dbservice"
 )
 
 func main() {
@@ -36,12 +36,14 @@ var db *sql.DB
 var emailSender common.EmailSender
 
 func init() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile | log.LUTC)
 	configPath := flag.String("config", "config-development.json", "application configuration file")
 	flag.Parse()
 	config = ReadConfig(*configPath)
-	db = dbservice.InitializeDb(config.SqlDataSourceName)
-	go chat.GetHub().Run()
-	chat.GetHub().FileLocation = config.FileLocation
+	storage.InitializeDb(config.SqlDataSourceName)
+	hub := chat.GetHub(config.SqlDataSourceName)
+	go hub.Run()
+	hub.FileLocation = config.FileLocation
 	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr, Name: config.WebsiteName}
 }
 

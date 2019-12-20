@@ -1,10 +1,11 @@
 package chat
 
 import (
-	"github.com/github-123456/goblog/common"
-	"github.com/swishcloud/goblog/dbservice"
 	"strconv"
 	"time"
+
+	"github.com/swishcloud/goblog/common"
+	"github.com/swishcloud/goblog/storage"
 )
 
 type Hub struct {
@@ -17,15 +18,17 @@ type Hub struct {
 	//unregister requests from the clients
 	unregister   chan *Client
 	FileLocation string
+	DbConnInfo   string
 }
 
-func GetHub() *Hub {
+func GetHub(conn_info string) *Hub {
 	if hub == nil {
 		hub = &Hub{
 			broadcast:  make(chan *[]byte),
 			register:   make(chan *Client),
 			unregister: make(chan *Client),
 			clients:    map[*Client]bool{},
+			DbConnInfo: conn_info,
 		}
 	}
 	return hub
@@ -40,7 +43,7 @@ func (h *Hub) Run() {
 			h.Broadcast(message)
 		case regClient := <-h.register:
 			h.clients[regClient] = true
-			lastMsgs, err := GetLastMessages()
+			lastMsgs, err := h.GetLastMessages()
 			if err != nil {
 				b := []byte(err.Error())
 				regClient.send <- NewMessage(2, time.Now().Format(common.TimeLayout2), &b, "").getBytes()
@@ -65,8 +68,9 @@ func (h *Hub) Broadcast(message *[]byte) {
 	}
 }
 
-func GetLastMessages() ([]Message, error) {
-	msgDtos, err := dbservice.WsmessageTop()
+func (h *Hub) GetLastMessages() ([]Message, error) {
+	s := storage.NewSQLManager(h.DbConnInfo)
+	msgDtos, err := s.WsmessageTop()
 	if err != nil {
 		return nil, err
 	}

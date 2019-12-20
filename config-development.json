@@ -14,5 +14,7 @@
   "OAuthTokenUrl":"https://id.swish-cloud.com/op/oauth2/token",
   "OAuthAuthUrl":"https://id.swish-cloud.com/op/oauth2/auth",
   "OAuthSecret":"eAkjOCLQvBBkNZcgHUmO",
+  "OAuthLogoutUrl":"https://id.swish-cloud.com/op/oauth2/sessions/logout",
+  "OAuthLogoutRedirectUrl":"http://localhost:8080/login",
   "JWKJsonUrl":"https://id.swish-cloud.com/op/.well-known/jwks.json"
 }

@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/github-123456/goblog/common"
-	"github.com/github-123456/goweb"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/swishcloud/goblog/dbservice"
+	"github.com/swishcloud/goblog/common"
+	"github.com/swishcloud/goblog/storage"
+	"github.com/swishcloud/goweb"
 )
 
 const (
@@ -81,7 +81,7 @@ func (c *Client) readPump() {
 
 			c.hub.broadcast <- NewMessage(1, time.Now().Format(common.TimeLayout2), msg.Content, msg.Id).getBytes()
 		} else {
-			err = dbservice.WsmessageInsert(string(*msg.Content))
+			err = storage.NewSQLManager(c.hub.DbConnInfo).WsmessageInsert(string(*msg.Content))
 			if err != nil {
 				println(err.Error())
 				break
@@ -166,15 +166,17 @@ func (c *Client) sendMessage(messageType int, msg *[]byte) error {
 	return nil
 }
 
-func WebSocket(ctx *goweb.Context) {
-	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
-	if err != nil {
-		panic(err)
+func WebSocket(db_conn_info string) func(ctx *goweb.Context) {
+	return func(ctx *goweb.Context) {
+		conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+		if err != nil {
+			panic(err)
+		}
+		client := &Client{hub: GetHub(db_conn_info), conn: conn, send: make(chan *[]byte, 256)}
+		client.hub.register <- client
+		go client.writePump()
+		go client.readPump()
 	}
-	client := &Client{hub: GetHub(), conn: conn, send: make(chan *[]byte, 256)}
-	client.hub.register <- client
-	go client.writePump()
-	go client.readPump()
 }
 
 type MessageHeader struct {

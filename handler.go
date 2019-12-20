@@ -8,49 +8,46 @@ import (
 	"html/template"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"time"
 
-	"github.com/github-123456/gostudy/aesencryption"
-	"github.com/github-123456/gostudy/superdb"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
-	"github.com/swishcloud/goblog/dbservice"
+	"github.com/swishcloud/goblog/chat"
+	"github.com/swishcloud/goblog/common"
+	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/goblog/storage/models"
+	"github.com/swishcloud/gostudy/aesencryption"
 	"github.com/swishcloud/goweb"
 	"github.com/swishcloud/goweb/auth"
-	"github.com/xiaozemin/goblog/chat"
-	"github.com/xiaozemin/goblog/common"
 	"golang.org/x/oauth2"
 )
 
 const session_user_key = "session_user"
 const (
-	PATH_ARTICLELIST       = "/articlelist"
-	PATH_ARTICLEEDIT       = "/articleedit"
-	PATH_ARTICLESAVE       = "/articlesave"
-	PATH_ARTICLEDELETE     = "/articledelete"
-	PATH_ARTICLELOCK       = "/articlelock"
-	PATH_LOGIN             = "/login"
-	PATH_LOGIN_CALLBACK    = "/login-callback"
-	PATH_LOGOUT            = "/logout"
-	PATH_CATEGORYLIST      = "/categories"
-	PATH_CATEGORYEDIT      = "/categoryedit"
-	PATH_CATEGORYSAVE      = "/categorysave"
-	PATH_CATEGORYDELETE    = "/categorydelete"
-	PATH_SETLEVELTWOPWD    = "/setlevel2pwd"
-	PATH_PROFILE           = "/profile"
-	PATH_UPLOAD            = "/upload"
-	PATH_EMAILVALIDATE     = "/emailValidate"
-	PATH_EMAILVALIDATESEND = "/emailValidateSend"
-	PATH_WEBSOCKET         = "/ws"
-	PATH_CHAT              = "/chat"
+	PATH_ARTICLELIST    = "/articlelist"
+	PATH_ARTICLEEDIT    = "/articleedit"
+	PATH_ARTICLESAVE    = "/articlesave"
+	PATH_ARTICLEDELETE  = "/articledelete"
+	PATH_ARTICLELOCK    = "/articlelock"
+	PATH_LOGIN          = "/login"
+	PATH_LOGIN_CALLBACK = "/login-callback"
+	PATH_LOGOUT         = "/logout"
+	PATH_CATEGORYLIST   = "/categories"
+	PATH_CATEGORYEDIT   = "/categoryedit"
+	PATH_CATEGORYSAVE   = "/categorysave"
+	PATH_CATEGORYDELETE = "/categorydelete"
+	PATH_SETLEVELTWOPWD = "/setlevel2pwd"
+	PATH_PROFILE        = "/profile"
+	PATH_UPLOAD         = "/upload"
+	PATH_WEBSOCKET      = "/ws"
+	PATH_CHAT           = "/chat"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
+	group.Use(StorageMiddleware())
 	auth := group.Group()
 	auth.Use(AuthMiddleware())
 
@@ -63,7 +60,7 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/src/", http.FileServer(http.Dir(config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 	})
-	group.GET(PATH_WEBSOCKET, chat.WebSocket)
+	group.GET(PATH_WEBSOCKET, chat.WebSocket(config.SqlDataSourceName))
 	group.GET(PATH_ARTICLELIST, ArticleList)
 	auth.GET(PATH_ARTICLEEDIT, ArticleEdit)
 	auth.POST(PATH_ARTICLESAVE, ArticleSave)
@@ -81,9 +78,25 @@ func BindHandlers(group *goweb.RouterGroup) {
 	auth.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
 	auth.GET(PATH_PROFILE, Profile)
 	auth.POST(PATH_UPLOAD, Upload)
-	group.GET(PATH_EMAILVALIDATE, EmailValidate)
-	group.POST(PATH_EMAILVALIDATESEND, EmailValidateSend)
 	group.GET(PATH_CHAT, Chat)
+}
+
+func StorageMiddleware() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		ctx.Next()
+		m := ctx.Data["storage"]
+		if m != nil {
+			m.(storage.Storage).Commit()
+		}
+	}
+}
+func GetStorage(ctx *goweb.Context) storage.Storage {
+	m := ctx.Data["storage"]
+	if m == nil {
+		m = storage.NewSQLManager(config.SqlDataSourceName)
+		ctx.Data["storage"] = m
+	}
+	return m.(storage.Storage)
 }
 
 type PageModel struct {
@@ -120,8 +133,8 @@ func NewPageModel(ctx *goweb.Context, title string, data interface{}) *PageModel
 const SessionName = "session"
 
 type UserArticleModel struct {
-	Articles   []dbservice.ArticleDto
-	Categories []dbservice.CategoryDto
+	Articles   []models.ArticleDto
+	Categories []models.CategoryDto
 	UserId     int
 }
 
@@ -150,7 +163,7 @@ func UserArticle(context *goweb.Context) {
 	category := context.Request.URL.Query().Get("category")
 	re := regexp.MustCompile(`\d+`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
-	user := dbservice.GetUser(id)
+	user := GetStorage(context).GetUser(id)
 	loginUser := MustGetLoginUser(context)
 	var queryArticleType int
 	if loginUser.Id == user.Id {
@@ -158,8 +171,8 @@ func UserArticle(context *goweb.Context) {
 	} else {
 		queryArticleType = 1
 	}
-	articles := dbservice.GetArticles(queryArticleType, user.Id, "", false, category)
-	categories := dbservice.GetCategories(user.Id, queryArticleType)
+	articles := GetStorage(context).GetArticles(queryArticleType, user.Id, "", false, category)
+	categories := GetStorage(context).GetCategories(user.Id, queryArticleType)
 	model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
 	context.RenderPage(NewPageModel(context, user.UserName, model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
 }
@@ -179,23 +192,23 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	articles := dbservice.GetArticles(1, 0, key, false, "")
+	articles := GetStorage(context).GetArticles(1, 0, key, false, "")
 	context.RenderPage(NewPageModel(context, config.WebsiteName, struct {
 		Key      string
-		Articles []dbservice.ArticleDto
+		Articles []models.ArticleDto
 	}{Key: key, Articles: articles}), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
 }
 
 type ArticleEditModel struct {
-	CategoryList []dbservice.CategoryDto
-	Article      dbservice.ArticleDto
+	CategoryList []models.CategoryDto
+	Article      models.ArticleDto
 	UserId       int
 }
 
 func ArticleEdit(context *goweb.Context) {
-	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id, 0)
+	categoryList := GetStorage(context).GetCategories(MustGetLoginUser(context).Id, 0)
 	model := ArticleEditModel{CategoryList: categoryList, UserId: MustGetLoginUser(context).Id}
-	if article, ok := context.Data["article"].(*dbservice.ArticleDto); ok {
+	if article, ok := context.Data["article"].(*models.ArticleDto); ok {
 		model.Article = *article
 	} else {
 		id := context.Request.URL.Query().Get("id")
@@ -204,7 +217,7 @@ func ArticleEdit(context *goweb.Context) {
 			if err != nil {
 				panic(err)
 			}
-			article := dbservice.GetArticle(intId)
+			article := GetStorage(context).GetArticle(intId)
 			if article.ArticleType == 3 {
 				http.Redirect(context.Writer, context.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=1", 302)
 				return
@@ -247,16 +260,15 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		newArticleLastInsertId := superdb.ExecuteTransaction(db, dbservice.NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey, cover))["NewArticleLastInsertId"].(int64)
-		intId = int(newArticleLastInsertId)
+		intId = GetStorage(context).NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey, cover)
 	} else {
-		superdb.ExecuteTransaction(db, dbservice.UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id, cover))
+		GetStorage(context).UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id, cover)
 	}
 	context.Success(intId)
 }
 
 type ArticleModel struct {
-	Article  *dbservice.ArticleDto
+	Article  *models.ArticleDto
 	Html     template.HTML
 	Readonly bool
 }
@@ -264,7 +276,7 @@ type ArticleModel struct {
 func Article(context *goweb.Context) {
 	re := regexp.MustCompile(`\d+$`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
-	article := dbservice.GetArticle(id)
+	article := GetStorage(context).GetArticle(id)
 	if article == nil {
 		context.ShowErrorPage(http.StatusNotFound, "page not found")
 		return
@@ -311,12 +323,12 @@ func ArticleLockPost(context *goweb.Context) {
 	pwd := context.Request.PostForm.Get("pwd")
 	t, _ := strconv.Atoi(context.Request.PostForm.Get("type"))
 	intId, _ := strconv.Atoi(id)
-	article := dbservice.GetArticle(intId)
+	article := GetStorage(context).GetArticle(intId)
 	if article.UserId != MustGetLoginUser(context).Id {
 		context.ShowErrorPage(http.StatusUnauthorized, "")
 		return
 	}
-	if !common.Md5Check(*dbservice.GetUser(article.UserId).Level2pwd, pwd) {
+	if !common.Md5Check(*GetStorage(context).GetUser(article.UserId).Level2pwd, pwd) {
 		context.RenderPage(NewPageModel(context, "lock", ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
 		return
 	}
@@ -352,10 +364,10 @@ func LoginCallback(ctx *goweb.Context) {
 	name := s.Claims["name"].(string)
 	iss := s.Claims["iss"].(string)
 	email := s.Claims["email"].(string)
-	user, err := dbservice.GetUserByOP(id, iss)
+	user, err := GetStorage(ctx).GetUserByOP(id, iss)
 	if err != nil {
-		_ = superdb.ExecuteTransaction(db, dbservice.NewUser(name, iss, id, email))["newUserId"].(int)
-		user, err = dbservice.GetUserByOP(id, iss)
+		GetStorage(ctx).NewUser(name, iss, id, email)
+		user, err = GetStorage(ctx).GetUserByOP(id, iss)
 		if err != nil {
 			panic(err)
 		}
@@ -367,37 +379,29 @@ func LoginCallback(ctx *goweb.Context) {
 	http.Redirect(ctx.Writer, ctx.Request, "/", 302)
 }
 
-func LogoutPost(context *goweb.Context) {
-	redirectUri := context.Request.URL.Query().Get("redirectUri")
-
-	expire := time.Now().Add(-7 * 24 * time.Hour)
-	cookie := http.Cookie{
-		Name:    SessionName,
-		Value:   "",
-		Expires: expire,
-	}
-	http.SetCookie(context.Writer, &cookie)
-
-	http.Redirect(context.Writer, context.Request, redirectUri, 302)
+func LogoutPost(ctx *goweb.Context) {
+	auth.Logout(ctx, func(id_token string) {
+		http.Redirect(ctx.Writer, ctx.Request, config.OAuthLogoutUrl+"?post_logout_redirect_uri="+config.OAuthLogoutRedirectUrl+"&id_token_hint="+id_token, 302)
+	})
 }
 
-func sendValidateEmail(context *goweb.Context, userId int) {
-	protocol := "https"
-	user := dbservice.GetUser(userId)
-	if user.Email == nil {
-		panic("the user does not have a email")
-	}
-	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email=" + *user.Email + "&code=" + url.QueryEscape(*user.SecurityStamp)
-	emailSender.SendEmail(*user.Email, "邮箱激活", fmt.Sprintf("<html><body>"+
-		"%s，您好:<br/><br/>"+
-		"感谢您注册%s,您的登录邮箱为%s,请点击以下链接激活您的邮箱地址：<br/><br/>"+
-		"<a href='%s'>%s</a><br/><br/>"+
-		"如果以上链接无法访问，请将该网址复制并粘贴至浏览器窗口中直接访问。", user.UserName, config.WebsiteName, *user.Email, activateAddr, activateAddr)+
-		"</body></html>")
-}
+// func sendValidateEmail(context *goweb.Context, userId int) {
+// 	protocol := "https"
+// 	user := GetStorage(context).GetUser(userId)
+// 	if user.Email == nil {
+// 		panic("the user does not have a email")
+// 	}
+// 	activateAddr := protocol + "://" + context.Request.Host + PATH_EMAILVALIDATE + "?email=" + *user.Email + "&code=" + url.QueryEscape(*user.SecurityStamp)
+// 	emailSender.SendEmail(*user.Email, "邮箱激活", fmt.Sprintf("<html><body>"+
+// 		"%s，您好:<br/><br/>"+
+// 		"感谢您注册%s,您的登录邮箱为%s,请点击以下链接激活您的邮箱地址：<br/><br/>"+
+// 		"<a href='%s'>%s</a><br/><br/>"+
+// 		"如果以上链接无法访问，请将该网址复制并粘贴至浏览器窗口中直接访问。", user.UserName, config.WebsiteName, *user.Email, activateAddr, activateAddr)+
+// 		"</body></html>")
+// }
 
 func CategoryList(context *goweb.Context) {
-	categoryList := dbservice.GetCategories(MustGetLoginUser(context).Id, 0)
+	categoryList := GetStorage(context).GetCategories(MustGetLoginUser(context).Id, 0)
 	context.RenderPage(NewPageModel(context, "我的分类", categoryList), "view/layout.html", "view/categorylist.html")
 }
 
@@ -429,10 +433,10 @@ func CategorySave(context *goweb.Context) {
 	name := context.Request.PostForm.Get("name")
 	id := context.Request.PostForm.Get("id")
 	if id == "" {
-		superdb.ExecuteTransaction(db, dbservice.NewCategory(name, MustGetLoginUser(context).Id))
+		GetStorage(context).NewCategory(name, MustGetLoginUser(context).Id)
 	} else {
 		intId, _ := strconv.Atoi(id)
-		superdb.ExecuteTransaction(db, dbservice.UpdateCategory(name, intId, MustGetLoginUser(context).Id))
+		GetStorage(context).UpdateCategory(name, intId, MustGetLoginUser(context).Id)
 	}
 	context.Success(nil)
 }
@@ -442,14 +446,14 @@ func CategoryDelete(context *goweb.Context) {
 	if err != nil {
 		panic(err)
 	}
-	superdb.ExecuteTransaction(db, dbservice.CategoryDelete(intId))
+	GetStorage(context).CategoryDelete(intId)
 	context.Success(nil)
 }
 
 func ArticleDelete(context *goweb.Context) {
 	id := context.Request.FormValue("id")
 	intId, _ := strconv.Atoi(id)
-	superdb.ExecuteTransaction(db, dbservice.ArticleDelete(intId, MustGetLoginUser(context).Id, config.PostKey))
+	GetStorage(context).ArticleDelete(intId, MustGetLoginUser(context).Id, config.PostKey)
 	context.Success(nil)
 }
 
@@ -479,7 +483,7 @@ type SetLevelTwoPwdModel struct {
 }
 
 func SetLevelTwoPwd(context *goweb.Context) {
-	user := dbservice.GetUser(MustGetLoginUser(context).Id)
+	user := GetStorage(context).GetUser(MustGetLoginUser(context).Id)
 	existLevel2Pwd := user.Level2pwd != nil
 	model := SetLevelTwoPwdModel{Settings: GetSettingsModel(context.Request.URL.Path)}
 	model.ExistLevel2Pwd = existLevel2Pwd
@@ -488,14 +492,14 @@ func SetLevelTwoPwd(context *goweb.Context) {
 func SetLevelTwoPwdPost(context *goweb.Context) {
 	oldPwd := context.Request.PostForm.Get("oldPwd")
 	newPwd := context.Request.PostForm.Get("newPwd")
-	user := dbservice.GetUser(MustGetLoginUser(context).Id)
+	user := GetStorage(context).GetUser(MustGetLoginUser(context).Id)
 	if user.Level2pwd != nil {
 		if !common.Md5Check(*user.Level2pwd, oldPwd) {
 			context.Failed("旧密码有误")
 			return
 		}
 	}
-	superdb.ExecuteTransaction(db, dbservice.SetLevelTwoPwd(user.Id, newPwd))
+	GetStorage(context).SetLevelTwoPwd(user.Id, newPwd)
 	context.Success(nil)
 }
 
@@ -530,32 +534,6 @@ func Upload(context *goweb.Context) {
 	}
 	context.Writer.Header().Add("Content-Type", "application/json")
 	context.Writer.Write(json)
-}
-func EmailValidate(context *goweb.Context) {
-	email := context.Request.Form.Get("email")
-	code := context.Request.Form.Get("code")
-	user := dbservice.GetUserByEmail(email)
-	if user != nil {
-		if user.EmailConfirmed == 0 {
-			if code == "" {
-				context.RenderPage(NewPageModel(context, "邮箱验证", email), "view/layout.html", "view/emailValidate.html")
-			} else {
-				dbservice.ValidateEmail(email, code)
-				http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
-			}
-		} else {
-			http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
-		}
-	} else {
-		panic("email not registered")
-	}
-}
-
-func EmailValidateSend(context *goweb.Context) {
-	email := context.Request.Form.Get("email")
-	user := dbservice.GetUserByEmail(email)
-	sendValidateEmail(context, user.Id)
-	context.Success(nil)
 }
 func Chat(context *goweb.Context) {
 	context.RenderPage(NewPageModel(context, "IM", config.UseHttps), "view/layout.html", "view/chat.html")
