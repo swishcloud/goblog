@@ -12,3 +12,6 @@
 *.out
 .idea
 /conf.json
+__debug_bin
+log
+.vscode

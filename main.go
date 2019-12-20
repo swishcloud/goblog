@@ -4,17 +4,20 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"github.com/github-123456/goweb"
+	"log"
+	"net/http"
+
 	_ "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/github"
+	"github.com/swishcloud/goweb"
 	"github.com/xiaozemin/goblog/chat"
 	"github.com/xiaozemin/goblog/common"
-	"github.com/xiaozemin/goblog/dbservice"
-	"net/http"
+	"github.com/swishcloud/goblog/dbservice"
 )
 
 func main() {
 	fmt.Println("listening on:", config.Host)
+	log.Println("accepting tcp connections on http://" + config.Host)
 	g := goweb.Default()
 	g.ErrorPageFunc = ErrorPage
 	g.ConcurrenceNumSem = make(chan int, config.ConcurrenceNum)
@@ -33,12 +36,12 @@ var db *sql.DB
 var emailSender common.EmailSender
 
 func init() {
-	configPath := flag.String("config","config-development.json", "application configuration file")
+	configPath := flag.String("config", "config-development.json", "application configuration file")
 	flag.Parse()
 	config = ReadConfig(*configPath)
-	db=dbservice.InitializeDb(config.SqlDataSourceName)
+	db = dbservice.InitializeDb(config.SqlDataSourceName)
 	go chat.GetHub().Run()
-	chat.GetHub().FileLocation=config.FileLocation
+	chat.GetHub().FileLocation = config.FileLocation
 	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr, Name: config.WebsiteName}
 }
 
@@ -48,6 +51,6 @@ type ErrorPageModel struct {
 }
 
 func ErrorPage(context *goweb.Context, status int, desc string) {
-	goweb.RenderPage(context, NewPageModel(string(status), ErrorPageModel{Status: status, Desc: desc}), "view/layout.html", "view/error.html")
+	context.RenderPage(NewPageModel(context, string(status), ErrorPageModel{Status: status, Desc: desc}), "view/layout.html", "view/error.html")
 
 }

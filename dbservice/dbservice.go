@@ -2,7 +2,12 @@ package dbservice
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"log"
+	"strconv"
+	"time"
+
 	"github.com/github-123456/goblog/common"
 	"github.com/github-123456/gostudy/aesencryption"
 	externalCommon "github.com/github-123456/gostudy/common"
@@ -12,9 +17,7 @@ import (
 	"github.com/golang-migrate/migrate"
 	"github.com/golang-migrate/migrate/database/mysql"
 	_ "github.com/golang-migrate/migrate/source/file"
-	"log"
-	"strconv"
-	"time"
+	"github.com/swishcloud/goblog/storage/models"
 )
 
 var db *sql.DB
@@ -31,7 +34,7 @@ func (err dbServiceError) Error() string {
 	return err.error
 }
 
-func InitializeDb(connInfo string)*sql.DB {
+func InitializeDb(connInfo string) *sql.DB {
 	db, _ = sql.Open("mysql", connInfo)
 	err := db.Ping()
 	if err != nil {
@@ -49,24 +52,19 @@ func InitializeDb(connInfo string)*sql.DB {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	err = m.Steps(2)
-	log.Println("successfully updated database")
+	err = m.Up()
+	if err != nil {
+		if err == migrate.ErrNoChange {
+			log.Println("database is up to date")
+		} else {
+			log.Fatal(err.Error())
+		}
+	} else {
+		log.Println("successfully updated database")
+	}
 	SetDb(db)
-	go initializeData()
 	return db
 }
-
-func initializeData()  {
-	no_user_existence:= superdb.ExecuteTransaction(db, func(tx *superdb.Tx) {
-		tx.Data["no_user_existence"]=!tx.Any(`select * from user`)
-	})["no_user_existence"].(bool)
-
-	if no_user_existence{
-		log.Println("creating new Admin user with password 123456 for the brand new database")
-		superdb.ExecuteTransaction(db, NewUser("admin", "123456","admin@null.com",1))
-	}
-}
-
 func GetArticles(articleType, userId int, key string, withLockedContext bool, categoryName string) []ArticleDto {
 	var typeWhere string
 	var userIdWhere string
@@ -288,10 +286,10 @@ func NewCategory(name string, userId int) superdb.DbTask {
 	}
 }
 
-func NewUser(userName, password string, email string,emailConfirmed int) superdb.DbTask {
+func NewUser(username, op_issuer, op_userid, email string) superdb.DbTask {
 	securityStamp := keygenerator.NewKey(32)
 	return func(tx *superdb.Tx) {
-		r := tx.MustExec(`insert into user (userName,password,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email)values(?,?,?,?,?,?,?,?,?)`, userName, common.Md5Hash(password), time.Now(), 0, 0, 0, securityStamp, emailConfirmed, email)
+		r := tx.MustExec(`insert into user (userName,insertTime,isDeleted,isBanned,accessFailedCount,securityStamp,emailConfirmed,email,op_issuer,op_userid)values(?,?,?,?,?,?,?,?,?,?)`, username, time.Now(), 0, 0, 0, securityStamp, 1, email, op_issuer, op_userid)
 		lastId, err := r.LastInsertId()
 		if err != nil {
 			panic(err)
@@ -300,6 +298,26 @@ func NewUser(userName, password string, email string,emailConfirmed int) superdb
 		NewCategory("默认分类", intLastId)(tx)
 		tx.SetValue("newUserId", intLastId)
 	}
+}
+func GetUserByOP(userid, issuer string) (*models.User, error) {
+	var (
+		id                int
+		userName          string
+		accessFailedCount int
+		lockoutEnd        *string
+		emailConfirmed    int
+		avatar            *string
+	)
+	r := db.QueryRow("select id,userName,accessFailedCount,lockoutEnd,emailConfirmed,avatar from user where op_userid=? and op_issuer=?", userid, issuer)
+	err := r.Scan(&id, &userName, &accessFailedCount, &lockoutEnd, &emailConfirmed, &avatar)
+	if err != nil {
+		return nil, errors.New("账号不存在")
+	}
+	u := &models.User{}
+	u.Avatar = avatar
+	u.Id = id
+	u.UserName = userName
+	return u, nil
 }
 
 func CheckUser(account, pwd string, maxAllowAccessFaildCount int) (*UserDto, error) {

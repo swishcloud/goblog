@@ -1,6 +1,6 @@
 {
   "FileLocation": "/workspace/goblog/file",
-  "Host":"0.0.0.0:8080",
+  "Host":"127.0.0.1:8080",
   "SqlDataSourceName":"develop:|qT/Ux[n7@tcp(47.92.105.16:3306)/goblog_develop?multiStatements=true",
   "WebsiteName":"GOBLOG",
   "ConcurrenceNum":2,
@@ -9,5 +9,10 @@
   "SmtpUsername": "",
   "SmtpPassword": "",
   "SmtpAddr": "",
-  "UseHttps": false
+  "UseHttps": false,
+  "OAuthClientId":"GOBLOG_DEV",
+  "OAuthTokenUrl":"https://id.swish-cloud.com/op/oauth2/token",
+  "OAuthAuthUrl":"https://id.swish-cloud.com/op/oauth2/auth",
+  "OAuthSecret":"eAkjOCLQvBBkNZcgHUmO",
+  "JWKJsonUrl":"https://id.swish-cloud.com/op/.well-known/jwks.json"
 }
