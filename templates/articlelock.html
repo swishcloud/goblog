@@ -1,0 +1,29 @@
+{{define "content"}}
+    <style>
+        #form {
+            margin: 0 auto
+        }
+    </style>
+    <div class="container">
+        <div class="d-none d-sm-none d-md-none d-lg-block" style="height:100px;"></div>
+        <form action="/articlelock" method="post" class="col-lg-4" id="form">
+            <div id="error">
+            </div>
+            <input type="hidden" name="id" value="{{.Id}}">
+            <input type="hidden" name="type" value="{{.Type}}">
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" class="form-control" name="pwd" placeholder="密码" required autocomplete="off">
+            </div>
+            <button id="submit" type="submit" class="btn btn-primary">确定</button>
+        </form>
+    </div>
+{{end}}
+{{define "script"}}
+    <script>
+        var error = '{{.Error}}'
+        if (error != '') {
+            app.showError($("#error"), error)
+        }
+    </script>
+{{end}}

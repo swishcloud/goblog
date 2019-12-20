@@ -174,7 +174,7 @@ func UserArticle(context *goweb.Context) {
 	articles := GetStorage(context).GetArticles(queryArticleType, user.Id, "", false, category)
 	categories := GetStorage(context).GetCategories(user.Id, queryArticleType)
 	model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
-	context.RenderPage(NewPageModel(context, user.UserName, model), "view/layout.html", "view/userLayout.html", "view/userArticle.html")
+	context.RenderPage(NewPageModel(context, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
 }
 
 type ArticleListItemModel struct {
@@ -196,7 +196,7 @@ func ArticleList(context *goweb.Context) {
 	context.RenderPage(NewPageModel(context, config.WebsiteName, struct {
 		Key      string
 		Articles []models.ArticleDto
-	}{Key: key, Articles: articles}), "view/layout.html", "view/leftRightLayout.html", "view/articlelist.html")
+	}{Key: key, Articles: articles}), "templates/layout.html", "templates/leftRightLayout.html", "templates/articlelist.html")
 }
 
 type ArticleEditModel struct {
@@ -225,7 +225,7 @@ func ArticleEdit(context *goweb.Context) {
 			model.Article = *article
 		}
 	}
-	context.RenderPage(NewPageModel(context, "写文章", model), "view/layout.html", "view/articleedit.html")
+	context.RenderPage(NewPageModel(context, "写文章", model), "templates/layout.html", "templates/articleedit.html")
 }
 
 func ArticleSave(context *goweb.Context) {
@@ -304,7 +304,7 @@ func Article(context *goweb.Context) {
 		}
 	}
 	model.Html = template.HTML(model.Article.Html)
-	context.RenderPage(NewPageModel(context, article.Title, model), "view/layout.html", "view/article.html")
+	context.RenderPage(NewPageModel(context, article.Title, model), "templates/layout.html", "templates/article.html")
 }
 
 type ArticleLockModel struct {
@@ -316,7 +316,7 @@ type ArticleLockModel struct {
 func ArticleLock(context *goweb.Context) {
 	id := context.Request.URL.Query().Get("id")
 	t := context.Request.URL.Query().Get("t")
-	context.RenderPage(NewPageModel(context, "lock", ArticleLockModel{Id: id, Type: t}), "view/layout.html", "view/articlelock.html")
+	context.RenderPage(NewPageModel(context, "lock", ArticleLockModel{Id: id, Type: t}), "templates/layout.html", "templates/articlelock.html")
 }
 func ArticleLockPost(context *goweb.Context) {
 	id := context.Request.PostForm.Get("id")
@@ -329,7 +329,7 @@ func ArticleLockPost(context *goweb.Context) {
 		return
 	}
 	if !common.Md5Check(*GetStorage(context).GetUser(article.UserId).Level2pwd, pwd) {
-		context.RenderPage(NewPageModel(context, "lock", ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "view/layout.html", "view/articlelock.html")
+		context.RenderPage(NewPageModel(context, "lock", ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "templates/layout.html", "templates/articlelock.html")
 		return
 	}
 	c, err := aesencryption.Decrypt([]byte(config.PostKey), article.Content)
@@ -344,7 +344,7 @@ func ArticleLockPost(context *goweb.Context) {
 		model := ArticleModel{Article: article, Readonly: false}
 		html, _ := aesencryption.Decrypt([]byte(config.PostKey), article.Html)
 		model.Html = template.HTML(html)
-		context.RenderPage(NewPageModel(context, article.Title, model), "view/layout.html", "view/article.html")
+		context.RenderPage(NewPageModel(context, article.Title, model), "templates/layout.html", "templates/article.html")
 	}
 }
 
@@ -402,7 +402,7 @@ func LogoutPost(ctx *goweb.Context) {
 
 func CategoryList(context *goweb.Context) {
 	categoryList := GetStorage(context).GetCategories(MustGetLoginUser(context).Id, 0)
-	context.RenderPage(NewPageModel(context, "我的分类", categoryList), "view/layout.html", "view/categorylist.html")
+	context.RenderPage(NewPageModel(context, "我的分类", categoryList), "templates/layout.html", "templates/categorylist.html")
 }
 
 type CategoryEditModel struct {
@@ -427,7 +427,7 @@ func CategoryEdit(context *goweb.Context) {
 	if id == "" {
 		title = "新增分类"
 	}
-	context.RenderPage(NewPageModel(context, title, model), "view/layout.html", "view/categoryedit.html")
+	context.RenderPage(NewPageModel(context, title, model), "templates/layout.html", "templates/categoryedit.html")
 }
 func CategorySave(context *goweb.Context) {
 	name := context.Request.PostForm.Get("name")
@@ -487,7 +487,7 @@ func SetLevelTwoPwd(context *goweb.Context) {
 	existLevel2Pwd := user.Level2pwd != nil
 	model := SetLevelTwoPwdModel{Settings: GetSettingsModel(context.Request.URL.Path)}
 	model.ExistLevel2Pwd = existLevel2Pwd
-	context.RenderPage(NewPageModel(context, "设置二级密码", model), "view/layout.html", "view/settingsLeftBar.html", "view/setleveltwopwd.html")
+	context.RenderPage(NewPageModel(context, "设置二级密码", model), "templates/layout.html", "templates/settingsLeftBar.html", "templates/setleveltwopwd.html")
 }
 func SetLevelTwoPwdPost(context *goweb.Context) {
 	oldPwd := context.Request.PostForm.Get("oldPwd")
@@ -508,7 +508,7 @@ type ProfileModel struct {
 }
 
 func Profile(context *goweb.Context) {
-	context.RenderPage(NewPageModel(context, "个人资料", ProfileModel{Settings: GetSettingsModel(context.Request.URL.Path)}), "view/layout.html", "view/settingsLeftBar.html", "view/profile.html")
+	context.RenderPage(NewPageModel(context, "个人资料", ProfileModel{Settings: GetSettingsModel(context.Request.URL.Path)}), "templates/layout.html", "templates/settingsLeftBar.html", "templates/profile.html")
 }
 func Upload(context *goweb.Context) {
 	file, fileHeader, err := context.Request.FormFile("image")
@@ -536,5 +536,5 @@ func Upload(context *goweb.Context) {
 	context.Writer.Write(json)
 }
 func Chat(context *goweb.Context) {
-	context.RenderPage(NewPageModel(context, "IM", config.UseHttps), "view/layout.html", "view/chat.html")
+	context.RenderPage(NewPageModel(context, "IM", config.UseHttps), "templates/layout.html", "templates/chat.html")
 }

@@ -1,0 +1,42 @@
+{{define "right"}}
+    <form action="/setlevel2pwd" method="post">
+        <div id="error"></div>
+        {{if eq .ExistLevel2Pwd true}}
+            <div class="form-group mt-2">
+                <label>现在的二级密码</label>
+                <input type="password" class="form-control col-lg-3" name="oldPwd" placeholder="现在的二级密码" required>
+            </div>
+        {{end}}
+        <div class="form-group mt-2">
+            <label>新的二级密码</label>
+            <input type="password" class="form-control col-lg-3" id="newPwd" name="newPwd" placeholder="新的二级密码"
+                   required>
+        </div>
+        <div class="form-group mt-2">
+            <label>确认新二级密码</label>
+            <input type="password" class="form-control col-lg-3" id="confirmPwd" name="confirmPwd" placeholder="确认新二级密码"
+                   required>
+        </div>
+        <button type="submit" class="btn btn-primary">保存</button>
+    </form>
+{{end}}
+{{define "script"}}
+    <script>
+        app.ajaxSubmit($("form:last"), {
+            before: function () {
+                app.closeError($('#error'))
+            },
+            success: function (res) {
+                if (res.error) {
+                    app.showError($('#error'), res.error)
+                } else {
+                    window.location.reload()
+                }
+            }
+        }, {
+            confirmPwd: {
+                equalTo: "#newPwd"
+            }
+        })
+    </script>
+{{end}}
