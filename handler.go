@@ -47,7 +47,6 @@ const (
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
-	group.Use(StorageMiddleware())
 	auth := group.Group()
 	auth.Use(AuthMiddleware())
 
@@ -79,16 +78,6 @@ func BindHandlers(group *goweb.RouterGroup) {
 	auth.GET(PATH_PROFILE, Profile)
 	auth.POST(PATH_UPLOAD, Upload)
 	group.GET(PATH_CHAT, Chat)
-}
-
-func StorageMiddleware() goweb.HandlerFunc {
-	return func(ctx *goweb.Context) {
-		ctx.Next()
-		m := ctx.Data["storage"]
-		if m != nil {
-			m.(storage.Storage).Commit()
-		}
-	}
 }
 func GetStorage(ctx *goweb.Context) storage.Storage {
 	m := ctx.Data["storage"]

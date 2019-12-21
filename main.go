@@ -21,6 +21,7 @@ func main() {
 	g := goweb.Default()
 	g.ErrorPageFunc = ErrorPage
 	g.ConcurrenceNumSem = make(chan int, config.ConcurrenceNum)
+	g.WM.HandlerWidgets = append(g.WM.HandlerWidgets, &HandlerWidget{})
 	BindHandlers(&g.RouterGroup)
 	server := http.Server{
 		Addr:    config.Host,
@@ -53,6 +54,18 @@ type ErrorPageModel struct {
 }
 
 func ErrorPage(context *goweb.Context, status int, desc string) {
-	context.RenderPage(NewPageModel(context, string(status), ErrorPageModel{Status: status, Desc: desc}), "view/layout.html", "view/error.html")
+	context.RenderPage(NewPageModel(context, string(status), ErrorPageModel{Status: status, Desc: desc}), "templates/layout.html", "templates/error.html")
 
+}
+
+type HandlerWidget struct {
+}
+
+func (*HandlerWidget) Pre_Process(ctx *goweb.Context) {
+}
+func (*HandlerWidget) Post_Process(ctx *goweb.Context) {
+	m := ctx.Data["storage"]
+	if m != nil {
+		m.(storage.Storage).Commit()
+	}
 }
