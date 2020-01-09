@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	TimeLayout1="2006-01-02 15:04"
-	TimeLayout2="15:04:05"
-	TimeLayoutMysqlDateTime="2006-01-02 15:04:05"
+	TimeLayout1             = "2006-01-02 15:04"
+	TimeLayout2             = "15:04:05"
+	TimeLayoutMysqlDateTime = "2006-01-02 15:04:05"
 )
 
 func Md5Check(hashedStr string, plain string) bool {
@@ -34,7 +34,7 @@ func (e Error) Error() string {
 	return e.Err
 }
 
-func ConvUtcToLocal(utcTime string,rawLayout string,newLayout string)string {
+func ConvUtcToLocal(utcTime string, rawLayout string, newLayout string) string {
 	if t, err := time.Parse(rawLayout, utcTime); err != nil {
 		panic(err)
 	} else {

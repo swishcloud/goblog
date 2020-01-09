@@ -1,10 +1,6 @@
 package models
 
-type User struct {
-	Id       int
-	UserName string
-	Avatar   *string
-}
+import "time"
 
 type CategoryDto struct {
 	Id   int
@@ -17,7 +13,7 @@ type ArticleDto struct {
 	Summary      string
 	Html         string
 	Content      string
-	InsertTime   string
+	InsertTime   time.Time
 	ArticleType  int
 	CategoryId   int
 	UserId       int
@@ -25,12 +21,16 @@ type ArticleDto struct {
 	Cover        *string
 }
 type UserDto struct {
-	Id             int
-	UserName       string
-	Level2pwd      *string
-	EmailConfirmed int
-	SecurityStamp  *string
-	Email          *string
+	Id          int
+	UserName    string
+	Level2pwd   *string
+	Insert_time time.Time
+	Update_time *time.Time
+	Is_banned   bool
+	Op_issuer   string
+	Op_userid   string
+	Avatar      string
+	Email       *string
 }
 
 type WsmessageDto struct {

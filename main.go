@@ -9,7 +9,6 @@ import (
 
 	_ "github.com/golang-migrate/migrate/database/postgres"
 	_ "github.com/golang-migrate/migrate/source/github"
-	"github.com/swishcloud/goblog/chat"
 	"github.com/swishcloud/goblog/common"
 	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/goweb"
@@ -21,7 +20,7 @@ func main() {
 	g := goweb.Default()
 	g.ErrorPageFunc = ErrorPage
 	g.ConcurrenceNumSem = make(chan int, config.ConcurrenceNum)
-	g.WM.HandlerWidgets = append(g.WM.HandlerWidgets, &HandlerWidget{})
+	g.WM.HandlerWidget = &HandlerWidget{}
 	BindHandlers(&g.RouterGroup)
 	server := http.Server{
 		Addr:    config.Host,
@@ -41,10 +40,6 @@ func init() {
 	configPath := flag.String("config", "config-development.json", "application configuration file")
 	flag.Parse()
 	config = ReadConfig(*configPath)
-	storage.InitializeDb(config.SqlDataSourceName)
-	hub := chat.GetHub(config.SqlDataSourceName)
-	go hub.Run()
-	hub.FileLocation = config.FileLocation
 	emailSender = common.EmailSender{UserName: config.SmtpUsername, Password: config.SmtpPassword, Addr: config.SmtpAddr, Name: config.WebsiteName}
 }
 
@@ -66,6 +61,10 @@ func (*HandlerWidget) Pre_Process(ctx *goweb.Context) {
 func (*HandlerWidget) Post_Process(ctx *goweb.Context) {
 	m := ctx.Data["storage"]
 	if m != nil {
-		m.(storage.Storage).Commit()
+		if ctx.Ok {
+			m.(storage.Storage).Commit()
+		} else {
+			m.(storage.Storage).Rollback()
+		}
 	}
 }

@@ -6,8 +6,8 @@
         {{range .Articles}}
             <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank" class="list-group-item list-group-item-action">
                 <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1" style="width:80%;overflow: hidden;margin-right: 20px;">{{.Title}}</h5>
-                    <small>{{.InsertTime}}</small>
+                    <h5 class="mb-1" style="width:70%;overflow: hidden;margin-right: 20px;">{{.Title}}</h5>
+                    <small>{{.CategoryName}}</small>  <small>{{formatTime .InsertTime ""}}</small>
                 </div>
                 <p class="mb-1" style="overflow:hidden">{{.Summary}}</p>
             </a>

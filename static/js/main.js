@@ -50,3 +50,6 @@ var app = {
 }
 
 $(document).ajaxStart(app.blockUi).ajaxComplete(app.unBlockUi)
+
+var timezone_offset_minutes = new Date().getTimezoneOffset();
+document.cookie = "tom=" + timezone_offset_minutes

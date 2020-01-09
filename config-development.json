@@ -1,7 +1,7 @@
 {
   "FileLocation": "/workspace/goblog/file",
   "Host":"127.0.0.1:8080",
-  "SqlDataSourceName":"develop:|qT/Ux[n7@tcp(47.92.105.16:3306)/goblog_develop?multiStatements=true",
+  "SqlDataSourceName":"postgres://filesync:secret@localhost:6010/goblog_dev?sslmode=disable",
   "WebsiteName":"GOBLOG",
   "ConcurrenceNum":2,
   "Key": "Fv`Oj^M-DG_OP:9_m6l;%\"8;1D(hx$Ie",

@@ -15,11 +15,9 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
-	"github.com/swishcloud/goblog/chat"
 	"github.com/swishcloud/goblog/common"
 	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/goblog/storage/models"
-	"github.com/swishcloud/gostudy/aesencryption"
 	"github.com/swishcloud/goweb"
 	"github.com/swishcloud/goweb/auth"
 	"golang.org/x/oauth2"
@@ -43,7 +41,6 @@ const (
 	PATH_PROFILE        = "/profile"
 	PATH_UPLOAD         = "/upload"
 	PATH_WEBSOCKET      = "/ws"
-	PATH_CHAT           = "/chat"
 )
 
 func BindHandlers(group *goweb.RouterGroup) {
@@ -59,7 +56,6 @@ func BindHandlers(group *goweb.RouterGroup) {
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
 		http.StripPrefix("/src/", http.FileServer(http.Dir(config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 	})
-	group.GET(PATH_WEBSOCKET, chat.WebSocket(config.SqlDataSourceName))
 	group.GET(PATH_ARTICLELIST, ArticleList)
 	auth.GET(PATH_ARTICLEEDIT, ArticleEdit)
 	auth.POST(PATH_ARTICLESAVE, ArticleSave)
@@ -77,7 +73,6 @@ func BindHandlers(group *goweb.RouterGroup) {
 	auth.POST(PATH_SETLEVELTWOPWD, SetLevelTwoPwdPost)
 	auth.GET(PATH_PROFILE, Profile)
 	auth.POST(PATH_UPLOAD, Upload)
-	group.GET(PATH_CHAT, Chat)
 }
 func GetStorage(ctx *goweb.Context) storage.Storage {
 	m := ctx.Data["storage"]
@@ -89,7 +84,7 @@ func GetStorage(ctx *goweb.Context) storage.Storage {
 }
 
 type PageModel struct {
-	User             *models.User
+	User             *models.UserDto
 	Path             string
 	RequestUri       string
 	Request          *http.Request
@@ -131,17 +126,17 @@ func (m UserArticleModel) GetCategoryUrl(name string) string {
 	return fmt.Sprintf("/user/%d/article?category=%s", m.UserId, name)
 }
 
-func GetLoginUser(ctx *goweb.Context) (*models.User, error) {
+func GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
 	if s, err := auth.GetSessionByToken(ctx); err != nil {
 		return nil, err
 	} else {
-		if u, ok := s.Data[session_user_key].(*models.User); ok {
+		if u, ok := s.Data[session_user_key].(*models.UserDto); ok {
 			return u, nil
 		}
 		return nil, errors.New("user not logged in")
 	}
 }
-func MustGetLoginUser(ctx *goweb.Context) *models.User {
+func MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
 	u, err := GetLoginUser(ctx)
 	if err != nil {
 		panic(err)
@@ -153,14 +148,17 @@ func UserArticle(context *goweb.Context) {
 	re := regexp.MustCompile(`\d+`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
 	user := GetStorage(context).GetUser(id)
-	loginUser := MustGetLoginUser(context)
+	loginUser, err := GetLoginUser(context)
+	if err != nil {
+		http.Redirect(context.Writer, context.Request, PATH_LOGIN, 302)
+	}
 	var queryArticleType int
 	if loginUser.Id == user.Id {
 		queryArticleType = 0
 	} else {
 		queryArticleType = 1
 	}
-	articles := GetStorage(context).GetArticles(queryArticleType, user.Id, "", false, category)
+	articles := GetStorage(context).GetArticles(queryArticleType, user.Id, "", category, config.PostKey)
 	categories := GetStorage(context).GetCategories(user.Id, queryArticleType)
 	model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
 	context.RenderPage(NewPageModel(context, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
@@ -181,7 +179,7 @@ func ArticleList(context *goweb.Context) {
 	} else {
 		key = ""
 	}
-	articles := GetStorage(context).GetArticles(1, 0, key, false, "")
+	articles := GetStorage(context).GetArticles(1, 0, key, "", config.PostKey)
 	context.RenderPage(NewPageModel(context, config.WebsiteName, struct {
 		Key      string
 		Articles []models.ArticleDto
@@ -206,7 +204,7 @@ func ArticleEdit(context *goweb.Context) {
 			if err != nil {
 				panic(err)
 			}
-			article := GetStorage(context).GetArticle(intId)
+			article := GetStorage(context).GetArticle(intId, config.PostKey)
 			if article.ArticleType == 3 {
 				http.Redirect(context.Writer, context.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=1", 302)
 				return
@@ -249,7 +247,7 @@ func ArticleSave(context *goweb.Context) {
 		panic(err)
 	}
 	if intId == 0 {
-		intId = GetStorage(context).NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey, cover)
+		intId = GetStorage(context).NewArticle(title, summary, html, content, MustGetLoginUser(context).Id, intArticleType, intCategoryId, config.PostKey, cover, nil)
 	} else {
 		GetStorage(context).UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, config.PostKey, MustGetLoginUser(context).Id, cover)
 	}
@@ -265,7 +263,7 @@ type ArticleModel struct {
 func Article(context *goweb.Context) {
 	re := regexp.MustCompile(`\d+$`)
 	id, _ := strconv.Atoi(re.FindString(context.Request.URL.Path))
-	article := GetStorage(context).GetArticle(id)
+	article := GetStorage(context).GetArticle(id, config.PostKey)
 	if article == nil {
 		context.ShowErrorPage(http.StatusNotFound, "page not found")
 		return
@@ -312,7 +310,7 @@ func ArticleLockPost(context *goweb.Context) {
 	pwd := context.Request.PostForm.Get("pwd")
 	t, _ := strconv.Atoi(context.Request.PostForm.Get("type"))
 	intId, _ := strconv.Atoi(id)
-	article := GetStorage(context).GetArticle(intId)
+	article := GetStorage(context).GetArticle(intId, config.PostKey)
 	if article.UserId != MustGetLoginUser(context).Id {
 		context.ShowErrorPage(http.StatusUnauthorized, "")
 		return
@@ -321,18 +319,12 @@ func ArticleLockPost(context *goweb.Context) {
 		context.RenderPage(NewPageModel(context, "lock", ArticleLockModel{Id: id, Type: strconv.Itoa(t), Error: "二级密码错误"}), "templates/layout.html", "templates/articlelock.html")
 		return
 	}
-	c, err := aesencryption.Decrypt([]byte(config.PostKey), article.Content)
-	if err != nil {
-		panic(err)
-	}
-	article.Content = c
 	if t == 1 {
 		context.Data["article"] = article
 		ArticleEdit(context)
 	} else if t == 2 {
 		model := ArticleModel{Article: article, Readonly: false}
-		html, _ := aesencryption.Decrypt([]byte(config.PostKey), article.Html)
-		model.Html = template.HTML(html)
+		model.Html = template.HTML(article.Html)
 		context.RenderPage(NewPageModel(context, article.Title, model), "templates/layout.html", "templates/article.html")
 	}
 }
@@ -353,18 +345,16 @@ func LoginCallback(ctx *goweb.Context) {
 	name := s.Claims["name"].(string)
 	iss := s.Claims["iss"].(string)
 	email := s.Claims["email"].(string)
+	avatar := s.Claims["avatar"].(string)
 	user, err := GetStorage(ctx).GetUserByOP(id, iss)
 	if err != nil {
-		GetStorage(ctx).NewUser(name, iss, id, email)
+		GetStorage(ctx).NewUser(name, iss, id, email, avatar)
 		user, err = GetStorage(ctx).GetUserByOP(id, iss)
 		if err != nil {
 			panic(err)
 		}
 	}
-	u := &models.User{}
-	u.Id = user.Id
-	u.UserName = user.UserName
-	s.Data[session_user_key] = u
+	s.Data[session_user_key] = user
 	http.Redirect(ctx.Writer, ctx.Request, "/", 302)
 }
 
@@ -394,38 +384,26 @@ func CategoryList(context *goweb.Context) {
 	context.RenderPage(NewPageModel(context, "我的分类", categoryList), "templates/layout.html", "templates/categorylist.html")
 }
 
-type CategoryEditModel struct {
-	Id   string
-	Name string
-}
-
 func CategoryEdit(context *goweb.Context) {
-	id := context.Request.URL.Query().Get("id")
-	var model CategoryEditModel
-	if id != "" {
-		r := db.QueryRow(`select name from category where isdeleted=0 and id=?`, id)
-		var name string
-		err := r.Scan(&name)
-		if err != nil {
-			context.ShowErrorPage(http.StatusNotFound, err.Error())
-			return
-		}
-		model = CategoryEditModel{Id: id, Name: name}
-	}
+	id, _ := strconv.Atoi(context.Request.URL.Query().Get("id"))
+	category := GetStorage(context).GetCategory(id)
 	title := "编辑分类"
-	if id == "" {
+	if category == nil {
+		category = new(models.CategoryDto)
 		title = "新增分类"
 	}
-	context.RenderPage(NewPageModel(context, title, model), "templates/layout.html", "templates/categoryedit.html")
+	context.RenderPage(NewPageModel(context, title, category), "templates/layout.html", "templates/categoryedit.html")
 }
 func CategorySave(context *goweb.Context) {
 	name := context.Request.PostForm.Get("name")
-	id := context.Request.PostForm.Get("id")
-	if id == "" {
+	id, err := strconv.Atoi(context.Request.PostForm.Get("id"))
+	if err != nil {
+		panic(err)
+	}
+	if id == 0 {
 		GetStorage(context).NewCategory(name, MustGetLoginUser(context).Id)
 	} else {
-		intId, _ := strconv.Atoi(id)
-		GetStorage(context).UpdateCategory(name, intId, MustGetLoginUser(context).Id)
+		GetStorage(context).UpdateCategory(name, id, MustGetLoginUser(context).Id)
 	}
 	context.Success(nil)
 }
@@ -523,7 +501,4 @@ func Upload(context *goweb.Context) {
 	}
 	context.Writer.Header().Add("Content-Type", "application/json")
 	context.Writer.Write(json)
-}
-func Chat(context *goweb.Context) {
-	context.RenderPage(NewPageModel(context, "IM", config.UseHttps), "templates/layout.html", "templates/chat.html")
 }
