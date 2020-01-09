@@ -1,11 +1,15 @@
 package storage
 
-import "github.com/swishcloud/goblog/storage/models"
+import (
+	"time"
+
+	"github.com/swishcloud/goblog/storage/models"
+)
 
 type Storage interface {
 	GetArticle(id int, key string) *models.ArticleDto
 	GetArticles(articleType, userId int, key string, categoryName string, secret_key string) []models.ArticleDto
-	NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string, cover *string, backup_article_id *int) int
+	NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string, cover *string, backup_article_id *int, insert_time, update_time *time.Time, remark string) int
 	UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int, cover *string)
 	GetUser(userId int) *models.UserDto
 	GetCategory(id int) *models.CategoryDto

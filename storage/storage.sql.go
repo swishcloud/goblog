@@ -131,7 +131,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 	return articles
 }
 
-func (m *SQLManager) NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string, cover *string, backup_article_id *int) int {
+func (m *SQLManager) NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string, cover *string, backup_article_id *int, insert_time, update_time *time.Time, remark string) int {
 	summary = externalCommon.StringLimitLen(summary, 200)
 	title = aesencryption.Encrypt([]byte(key), title)
 	content = aesencryption.Encrypt([]byte(key), content)
@@ -144,9 +144,9 @@ func (m *SQLManager) NewArticle(title string, summary string, html string, conte
 		}
 	}
 	r := m.Tx.MustQueryRow(`INSERT INTO public.article(
-		category_id, content, html, insert_time, is_banned, is_deleted, title, type,user_id, cover, summary,backup_article_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id;`,
-		categoryId, content, html, time.Now().UTC(), false, false, title, articleType, userId, cover, summary, backup_article_id)
+		category_id, content, html, insert_time,update_time, is_banned, is_deleted, title, type,user_id, cover, summary,backup_article_id,remark)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id;`,
+		categoryId, content, html, insert_time, update_time, false, false, title, articleType, userId, cover, summary, backup_article_id, remark)
 	id := 0
 	r.MustScan(&id)
 	return id
@@ -167,7 +167,8 @@ func (m *SQLManager) UpdateArticle(id int, title string, summary string, html st
 		panic(fmt.Sprintf("articleType %d is invalid", articleType))
 	}
 	//backup
-	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.CategoryId, key, article.Cover, &id)
+	now := time.Now().UTC()
+	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.CategoryId, key, article.Cover, &id, &now, nil, "backup article")
 	m.Tx.MustExec(`UPDATE public.article
 	SET category_id=$1, content=$2, html=$3, title=$4, type=$5, update_time=$6, cover=$7, summary=$8
 	WHERE id=$9;`, categoryId, content, html, title, articleType, time.Now().UTC(), cover, summary, id)
