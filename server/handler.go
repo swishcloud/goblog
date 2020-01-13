@@ -93,7 +93,7 @@ type PageModel struct {
 
 func (s *GoBlogServer) AuthMiddleware() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		if !auth.HasLoggedIn(ctx, s.config.IntrospectTokenURL) {
+		if !auth.HasLoggedIn(ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify) {
 			if ctx.Request.Method == "GET" {
 				http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN+"?redirectUri="+ctx.Request.RequestURI, 302)
 			} else {
@@ -118,7 +118,7 @@ func (m UserArticleModel) GetCategoryUrl(name string) string {
 }
 
 func (s *GoBlogServer) GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
-	if s, err := auth.GetSessionByToken(ctx, s.config.IntrospectTokenURL); err != nil {
+	if s, err := auth.GetSessionByToken(ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify); err != nil {
 		return nil, err
 	} else {
 		if u, ok := s.Data[session_user_key].(*models.UserDto); ok {
@@ -270,7 +270,7 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 			return
 		}
 		model := ArticleModel{Article: article, Readonly: true}
-		if !auth.HasLoggedIn(ctx, s.config.IntrospectTokenURL) {
+		if !auth.HasLoggedIn(ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify) {
 			if article.ArticleType != 1 {
 				http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN, 302)
 				return
@@ -372,7 +372,7 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 
 func (s *GoBlogServer) LogoutPost() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		auth.Logout(ctx, s.config.IntrospectTokenURL, func(id_token string) {
+		auth.Logout(ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify, func(id_token string) {
 			http.Redirect(ctx.Writer, ctx.Request, s.config.OAuthLogoutUrl+"?post_logout_redirect_uri="+s.config.OAuthLogoutRedirectUrl+"&id_token_hint="+id_token, 302)
 		})
 	}
