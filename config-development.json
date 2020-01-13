@@ -1,7 +1,7 @@
 {
   "FileLocation": "/workspace/goblog/file",
   "Host":"127.0.0.1:8080",
-  "SqlDataSourceName":"postgres://filesync:secret@localhost:6010/goblog_dev?sslmode=disable",
+  "SqlDataSourceName":"postgres://goblog:secret@192.168.100.8:6011/goblog?sslmode=disable",
   "WebsiteName":"GOBLOG",
   "ConcurrenceNum":2,
   "Key": "Fv`Oj^M-DG_OP:9_m6l;%\"8;1D(hx$Ie",
@@ -16,5 +16,6 @@
   "OAuthSecret":"eAkjOCLQvBBkNZcgHUmO",
   "OAuthLogoutUrl":"https://id.swish-cloud.com/op/oauth2/sessions/logout",
   "OAuthLogoutRedirectUrl":"http://localhost:8080",
-  "JWKJsonUrl":"https://id.swish-cloud.com/op/.well-known/jwks.json"
+  "JWKJsonUrl":"https://id.swish-cloud.com/op/.well-known/jwks.json",
+  "IntrospectTokenURL": "https://id.swish-cloud.com/api/introspect-token"
 }

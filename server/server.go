@@ -56,7 +56,7 @@ func (s *GoBlogServer) NewPageModel(ctx *goweb.Context, title string, data inter
 	m.Path = ctx.Request.URL.Path
 	m.RequestUri = ctx.Request.RequestURI
 	m.Request = ctx.Request
-	u, err := GetLoginUser(ctx)
+	u, err := s.GetLoginUser(ctx)
 	if err == nil {
 		m.User = u
 	}
@@ -84,11 +84,13 @@ type Config struct {
 	OAuthSecret       string
 
 	//not read from configuration file
-	LastUpdateTime         string
+	LastUpdateTime string
+
 	OAUTH2Config           *oauth2.Config
 	JWKJsonUrl             string
 	OAuthLogoutRedirectUrl string
 	OAuthLogoutUrl         string
+	IntrospectTokenURL     string
 }
 
 func readConfig(filePath string) *Config {

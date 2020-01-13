@@ -45,7 +45,7 @@ const (
 func (s *GoBlogServer) BindHandlers() {
 	group := s.engine.RouterGroup
 	auth := group.Group()
-	auth.Use(AuthMiddleware())
+	auth.Use(s.AuthMiddleware())
 
 	group.GET("/", s.ArticleList())
 	group.RegexMatch(regexp.MustCompile(`^/u/\d+/post/\d+$`), s.Article())
@@ -91,9 +91,9 @@ type PageModel struct {
 	Config           Config
 }
 
-func AuthMiddleware() goweb.HandlerFunc {
+func (s *GoBlogServer) AuthMiddleware() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		if !auth.HasLoggedIn(ctx) {
+		if !auth.HasLoggedIn(ctx, s.config.IntrospectTokenURL) {
 			if ctx.Request.Method == "GET" {
 				http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN+"?redirectUri="+ctx.Request.RequestURI, 302)
 			} else {
@@ -117,8 +117,8 @@ func (m UserArticleModel) GetCategoryUrl(name string) string {
 	return fmt.Sprintf("/user/%d/article?category=%s", m.UserId, name)
 }
 
-func GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
-	if s, err := auth.GetSessionByToken(ctx); err != nil {
+func (s *GoBlogServer) GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
+	if s, err := auth.GetSessionByToken(ctx, s.config.IntrospectTokenURL); err != nil {
 		return nil, err
 	} else {
 		if u, ok := s.Data[session_user_key].(*models.UserDto); ok {
@@ -127,8 +127,8 @@ func GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
 		return nil, errors.New("user not logged in")
 	}
 }
-func MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
-	u, err := GetLoginUser(ctx)
+func (s *GoBlogServer) MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
+	u, err := s.GetLoginUser(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -140,7 +140,7 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		re := regexp.MustCompile(`\d+`)
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		user := s.GetStorage(ctx).GetUser(id)
-		loginUser, err := GetLoginUser(ctx)
+		loginUser, err := s.GetLoginUser(ctx)
 		if err != nil {
 			http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN, 302)
 		}
@@ -189,8 +189,8 @@ type ArticleEditModel struct {
 
 func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		categoryList := s.GetStorage(ctx).GetCategories(MustGetLoginUser(ctx).Id, 0)
-		model := ArticleEditModel{CategoryList: categoryList, UserId: MustGetLoginUser(ctx).Id}
+		categoryList := s.GetStorage(ctx).GetCategories(s.MustGetLoginUser(ctx).Id, 0)
+		model := ArticleEditModel{CategoryList: categoryList, UserId: s.MustGetLoginUser(ctx).Id}
 		if article, ok := ctx.Data["article"].(*models.ArticleDto); ok {
 			model.Article = *article
 		} else {
@@ -246,9 +246,9 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 		}
 		now := time.Now().UTC()
 		if intId == 0 {
-			intId = s.GetStorage(ctx).NewArticle(title, summary, html, content, MustGetLoginUser(ctx).Id, intArticleType, intCategoryId, s.config.PostKey, cover, nil, &now, nil, "New article by user")
+			intId = s.GetStorage(ctx).NewArticle(title, summary, html, content, s.MustGetLoginUser(ctx).Id, intArticleType, intCategoryId, s.config.PostKey, cover, nil, &now, nil, "New article by user")
 		} else {
-			s.GetStorage(ctx).UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, s.config.PostKey, MustGetLoginUser(ctx).Id, cover)
+			s.GetStorage(ctx).UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, s.config.PostKey, s.MustGetLoginUser(ctx).Id, cover)
 		}
 		ctx.Success(intId)
 	}
@@ -270,13 +270,13 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 			return
 		}
 		model := ArticleModel{Article: article, Readonly: true}
-		if !auth.HasLoggedIn(ctx) {
+		if !auth.HasLoggedIn(ctx, s.config.IntrospectTokenURL) {
 			if article.ArticleType != 1 {
 				http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN, 302)
 				return
 			}
 		} else {
-			loginUserId := MustGetLoginUser(ctx).Id
+			loginUserId := s.MustGetLoginUser(ctx).Id
 			if article.ArticleType != 1 {
 				if article.UserId != loginUserId {
 					ctx.ShowErrorPage(http.StatusUnauthorized, "")
@@ -317,7 +317,7 @@ func (s *GoBlogServer) ArticleLockPost() goweb.HandlerFunc {
 		t, _ := strconv.Atoi(ctx.Request.PostForm.Get("type"))
 		intId, _ := strconv.Atoi(id)
 		article := s.GetStorage(ctx).GetArticle(intId, s.config.PostKey)
-		if article.UserId != MustGetLoginUser(ctx).Id {
+		if article.UserId != s.MustGetLoginUser(ctx).Id {
 			ctx.ShowErrorPage(http.StatusUnauthorized, "")
 			return
 		}
@@ -372,14 +372,14 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 
 func (s *GoBlogServer) LogoutPost() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		auth.Logout(ctx, func(id_token string) {
+		auth.Logout(ctx, s.config.IntrospectTokenURL, func(id_token string) {
 			http.Redirect(ctx.Writer, ctx.Request, s.config.OAuthLogoutUrl+"?post_logout_redirect_uri="+s.config.OAuthLogoutRedirectUrl+"&id_token_hint="+id_token, 302)
 		})
 	}
 }
 func (s *GoBlogServer) CategoryList() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		categoryList := s.GetStorage(ctx).GetCategories(MustGetLoginUser(ctx).Id, 0)
+		categoryList := s.GetStorage(ctx).GetCategories(s.MustGetLoginUser(ctx).Id, 0)
 		ctx.RenderPage(s.NewPageModel(ctx, "我的分类", categoryList), "templates/layout.html", "templates/categorylist.html")
 	}
 }
@@ -405,9 +405,9 @@ func (s *GoBlogServer) CategorySave() goweb.HandlerFunc {
 			panic(err)
 		}
 		if id == 0 {
-			s.GetStorage(ctx).NewCategory(name, MustGetLoginUser(ctx).Id)
+			s.GetStorage(ctx).NewCategory(name, s.MustGetLoginUser(ctx).Id)
 		} else {
-			s.GetStorage(ctx).UpdateCategory(name, id, MustGetLoginUser(ctx).Id)
+			s.GetStorage(ctx).UpdateCategory(name, id, s.MustGetLoginUser(ctx).Id)
 		}
 		ctx.Success(nil)
 	}
@@ -429,7 +429,7 @@ func (s *GoBlogServer) ArticleDelete() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		id := ctx.Request.FormValue("id")
 		intId, _ := strconv.Atoi(id)
-		s.GetStorage(ctx).ArticleDelete(intId, MustGetLoginUser(ctx).Id, s.config.PostKey)
+		s.GetStorage(ctx).ArticleDelete(intId, s.MustGetLoginUser(ctx).Id, s.config.PostKey)
 		ctx.Success(nil)
 	}
 }
@@ -461,7 +461,7 @@ type SetLevelTwoPwdModel struct {
 
 func (s *GoBlogServer) SetLevelTwoPwd() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		user := s.GetStorage(ctx).GetUser(MustGetLoginUser(ctx).Id)
+		user := s.GetStorage(ctx).GetUser(s.MustGetLoginUser(ctx).Id)
 		existLevel2Pwd := user.Level2pwd != nil
 		model := SetLevelTwoPwdModel{Settings: GetSettingsModel(ctx.Request.URL.Path)}
 		model.ExistLevel2Pwd = existLevel2Pwd
@@ -473,7 +473,7 @@ func (s *GoBlogServer) SetLevelTwoPwdPost() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		oldPwd := ctx.Request.PostForm.Get("oldPwd")
 		newPwd := ctx.Request.PostForm.Get("newPwd")
-		user := s.GetStorage(ctx).GetUser(MustGetLoginUser(ctx).Id)
+		user := s.GetStorage(ctx).GetUser(s.MustGetLoginUser(ctx).Id)
 		if user.Level2pwd != nil {
 			if !common.Md5Check(*user.Level2pwd, oldPwd) {
 				ctx.Failed("旧密码有误")
