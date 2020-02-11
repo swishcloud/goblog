@@ -28,9 +28,8 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s.httpClient = &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: skip_tls_verify}}}
 	http.DefaultClient = s.httpClient
 	s.engine = goweb.Default()
-	s.engine.ErrorPageFunc = s.ErrorPage()
 	s.engine.ConcurrenceNumSem = make(chan int, s.config.ConcurrenceNum)
-	s.engine.WM.HandlerWidget = &HandlerWidget{}
+	s.engine.WM.HandlerWidget = &HandlerWidget{s: s}
 	s.BindHandlers()
 	return s
 }
@@ -126,11 +125,12 @@ type ErrorPageModel struct {
 }
 
 type HandlerWidget struct {
+	s *GoBlogServer
 }
 
 func (*HandlerWidget) Pre_Process(ctx *goweb.Context) {
 }
-func (*HandlerWidget) Post_Process(ctx *goweb.Context) {
+func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 	m := ctx.Data["storage"]
 	if m != nil {
 		if ctx.Ok {
@@ -138,5 +138,12 @@ func (*HandlerWidget) Post_Process(ctx *goweb.Context) {
 		} else {
 			m.(storage.Storage).Rollback()
 		}
+	}
+	if ctx.Err != nil {
+		data := struct {
+			Desc string
+		}{Desc: ctx.Err.Error()}
+		model := hw.s.NewPageModel(ctx, "ERROR", data)
+		ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
 	}
 }

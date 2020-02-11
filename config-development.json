@@ -11,11 +11,11 @@
   "SmtpAddr": "",
   "UseHttps": false,
   "OAuthClientId":"GOBLOG_DEV",
-  "OAuthTokenUrl":"https://id.swish-cloud.com/op/oauth2/token",
-  "OAuthAuthUrl":"https://id.swish-cloud.com/op/oauth2/auth",
+  "OAuthTokenUrl":"https://id.swish-cloud.com/oauth2/token",
+  "OAuthAuthUrl":"https://id.swish-cloud.com/oauth2/auth",
   "OAuthSecret":"eAkjOCLQvBBkNZcgHUmO",
-  "OAuthLogoutUrl":"https://id.swish-cloud.com/op/oauth2/sessions/logout",
+  "OAuthLogoutUrl":"https://id.swish-cloud.com/oauth2/sessions/logout",
   "OAuthLogoutRedirectUrl":"http://localhost:8080",
-  "JWKJsonUrl":"https://id.swish-cloud.com/op/.well-known/jwks.json",
+  "JWKJsonUrl":"https://id.swish-cloud.com/.well-known/jwks.json",
   "IntrospectTokenURL": "https://id.swish-cloud.com/api/introspect-token"
 }
