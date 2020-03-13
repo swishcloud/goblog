@@ -38,9 +38,11 @@ func NewSQLManager(conn_info string) Storage {
 
 func (m *SQLManager) Commit() {
 	m.Tx.Commit()
+	m.Tx.Close()
 }
 func (m *SQLManager) Rollback() {
 	m.Tx.Rollback()
+	m.Tx.Close()
 }
 
 func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
