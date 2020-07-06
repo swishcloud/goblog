@@ -23,11 +23,11 @@ var db *sql.DB
 
 func NewSQLManager(conn_info string) Storage {
 	if db == nil {
-		d, err := sql.Open("postgres", conn_info)
-		if err != nil {
+		if d, err := tx.NewDB("postgres", conn_info); err != nil {
 			panic(err)
+		} else {
+			db = d
 		}
-		db = d
 	}
 	tx, err := tx.NewTx(db)
 	if err != nil {
@@ -38,11 +38,9 @@ func NewSQLManager(conn_info string) Storage {
 
 func (m *SQLManager) Commit() {
 	m.Tx.Commit()
-	m.Tx.Close()
 }
 func (m *SQLManager) Rollback() {
 	m.Tx.Rollback()
-	m.Tx.Close()
 }
 
 func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {

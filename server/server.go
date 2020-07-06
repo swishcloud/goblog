@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/swishcloud/goblog/storage"
+	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/goweb"
 	"golang.org/x/oauth2"
 )
@@ -19,10 +20,12 @@ type GoBlogServer struct {
 	config          *Config
 	skip_tls_verify bool
 	httpClient      *http.Client
+	rac             *common.RestApiClient
 }
 
 func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s := new(GoBlogServer)
+	s.rac = common.NewRestApiClient(skip_tls_verify)
 	s.config = readConfig(configPath)
 	s.skip_tls_verify = skip_tls_verify
 	s.httpClient = &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: skip_tls_verify}}}
