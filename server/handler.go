@@ -16,8 +16,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
-	"github.com/swishcloud/goblog/common"
 	"github.com/swishcloud/goblog/storage/models"
+	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/gostudy/keygenerator"
 	"github.com/swishcloud/goweb"
 	"github.com/swishcloud/goweb/auth"
@@ -357,10 +357,12 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		state := ctx.Request.URL.Query().Get("state")
 		if cookie, err := ctx.Request.Cookie(csrf_state_cookie_name); err != nil {
+			common.DelCookie(ctx.Writer, csrf_state_cookie_name)
 			ctx.Failed("state cookie does not present")
 			return
 		} else {
 			if cookie.Value != state {
+				common.DelCookie(ctx.Writer, csrf_state_cookie_name)
 				ctx.Failed("csrf verification failed")
 				return
 			}

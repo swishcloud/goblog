@@ -52,4 +52,6 @@ var app = {
 $(document).ajaxStart(app.blockUi).ajaxComplete(app.unBlockUi)
 
 var timezone_offset_minutes = new Date().getTimezoneOffset();
-document.cookie = "tom=" + timezone_offset_minutes
+expire=new Date()
+expire.setUTCFullYear(2050)
+document.cookie = "tom=" + timezone_offset_minutes+';expires='+expire.toGMTString()+';path=/';

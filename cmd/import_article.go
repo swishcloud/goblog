@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/swishcloud/goblog/common"
+	"github.com/swishcloud/goblog/internal"
 	"github.com/swishcloud/goblog/storage"
 )
 
@@ -58,12 +58,12 @@ var importArticleCmd = &cobra.Command{
 				log.Fatal("can not import data to this user")
 			}
 
-			insert_t, err := time.Parse(common.TimeLayoutMysqlDateTime, insertTime)
+			insert_t, err := time.Parse(internal.TimeLayoutMysqlDateTime, insertTime)
 			insert_t = insert_t.UTC()
 			if err != nil {
 				log.Fatal(err)
 			}
-			update_t, err := time.Parse(common.TimeLayoutMysqlDateTime, updateTime)
+			update_t, err := time.Parse(internal.TimeLayoutMysqlDateTime, updateTime)
 			update_t = update_t.UTC()
 			if err != nil {
 				log.Fatal(err)

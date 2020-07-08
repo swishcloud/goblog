@@ -7,12 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/swishcloud/gostudy/tx"
-
-	"github.com/swishcloud/goblog/common"
 	"github.com/swishcloud/goblog/storage/models"
 	"github.com/swishcloud/gostudy/aesencryption"
-	externalCommon "github.com/swishcloud/gostudy/common"
+	"github.com/swishcloud/gostudy/common"
+	"github.com/swishcloud/gostudy/tx"
 )
 
 type SQLManager struct {
@@ -132,7 +130,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 }
 
 func (m *SQLManager) NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string, cover *string, backup_article_id *int, insert_time, update_time *time.Time, remark string) int {
-	summary = externalCommon.StringLimitLen(summary, 200)
+	summary = common.StringLimitLen(summary, 200)
 	title = aesencryption.Encrypt([]byte(key), title)
 	content = aesencryption.Encrypt([]byte(key), content)
 	summary = aesencryption.Encrypt([]byte(key), summary)
@@ -152,7 +150,7 @@ func (m *SQLManager) NewArticle(title string, summary string, html string, conte
 	return id
 }
 func (m *SQLManager) UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int, cover *string) {
-	summary = externalCommon.StringLimitLen(summary, 200)
+	summary = common.StringLimitLen(summary, 200)
 	title = aesencryption.Encrypt([]byte(key), title)
 	content = aesencryption.Encrypt([]byte(key), content)
 	summary = aesencryption.Encrypt([]byte(key), summary)
