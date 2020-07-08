@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,12 +18,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/swishcloud/goblog/common"
 	"github.com/swishcloud/goblog/storage/models"
+	"github.com/swishcloud/gostudy/keygenerator"
 	"github.com/swishcloud/goweb"
 	"github.com/swishcloud/goweb/auth"
 	"golang.org/x/oauth2"
 )
 
 const session_user_key = "session_user"
+const csrf_state_cookie_name = "crft_state"
 const (
 	PATH_ARTICLELIST    = "/articlelist"
 	PATH_ARTICLEEDIT    = "/articleedit"
@@ -338,13 +341,30 @@ func (s *GoBlogServer) ArticleLockPost() goweb.HandlerFunc {
 
 func (s *GoBlogServer) Login() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		url := s.config.OAUTH2Config.AuthCodeURL("state-string", oauth2.AccessTypeOffline)
+		state, err := keygenerator.NewKey(20, false, false, false, false)
+		state = base64.URLEncoding.EncodeToString([]byte(state))
+		cookie := http.Cookie{Name: csrf_state_cookie_name, Value: state, Path: "/"}
+		http.SetCookie(ctx.Writer, &cookie)
+		if err != nil {
+			panic(err)
+		}
+		url := s.config.OAUTH2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
 		http.Redirect(ctx.Writer, ctx.Request, url, 302)
 	}
 }
 
 func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
+		state := ctx.Request.URL.Query().Get("state")
+		if cookie, err := ctx.Request.Cookie(csrf_state_cookie_name); err != nil {
+			ctx.Failed("state cookie does not present")
+			return
+		} else {
+			if cookie.Value != state {
+				ctx.Failed("csrf verification failed")
+				return
+			}
+		}
 		code := ctx.Request.URL.Query().Get("code")
 		token, err := s.config.OAUTH2Config.Exchange(context.Background(), code)
 		if err != nil {
