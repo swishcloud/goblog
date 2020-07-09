@@ -10,14 +10,8 @@
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="stylesheet" href="/static/css/navbar.css">
     <link rel="stylesheet" href="/static/fontawesome-free-5.9.0-web/css/all.css">
-    <style>        
-        body {
-            background: url("{{.Config.HomeWallpaper}}");
-            background-size: 100%, 100%;
-        }
-    </style>
 </head>
-<body>
+<body style="background: url({{.Config.HomeWallpaper}});background-size: 100%,100%;">
 <div class="nav">
     <div style="display:flex;align-items:center;">
         <div class="brand"><a href="/">{{.WebSiteName}}</a></div>
