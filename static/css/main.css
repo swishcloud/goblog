@@ -78,10 +78,6 @@ ul {
     .col-right {
         display: block;
     }
-    .container{
-        padding: 20px 15px 20px 15px;
-        background-color: white;
-    }
 }
 
 @media (max-width: 1199px) {
