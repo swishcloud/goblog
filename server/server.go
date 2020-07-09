@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/swishcloud/gostudy/keygenerator"
+
 	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/goweb"
@@ -37,11 +39,39 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	return s
 }
 func (s *GoBlogServer) Serve() {
+	go s.periodicTask()
 	log.Println("listening on:", s.config.Host)
 	err := http.ListenAndServe(s.config.Host, s.engine)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+func (s *GoBlogServer) periodicTask() {
+	for {
+		err := s.updateHomeWallpaper()
+		if err != nil {
+			log.Println("update home wallpaper from Bing failed")
+		} else {
+			log.Println("update home wallpaper from Bing succeed")
+		}
+		time.Sleep(time.Minute * 60)
+	}
+}
+func (s *GoBlogServer) updateHomeWallpaper() error {
+	url, err := common.GetBingHomeWallpaper(s.rac)
+	if err != nil {
+		return err
+	}
+	err = common.DownloadFile(s.rac, url, "static/images/bg.jpeg")
+	if err != nil {
+		return err
+	}
+	random, err := keygenerator.NewKey(4, false, false, false, true)
+	if err != nil {
+		return err
+	}
+	s.config.HomeWallpaper = "/static/images/bg.jpeg?" + random
+	return nil
 }
 
 func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
@@ -87,6 +117,7 @@ type Config struct {
 
 	//not read from configuration file
 	LastUpdateTime string
+	HomeWallpaper  string
 
 	OAUTH2Config           *oauth2.Config
 	JWKJsonUrl             string
@@ -108,6 +139,7 @@ func readConfig(filePath string) *Config {
 	}
 	tm := info.ModTime().Local()
 	c.LastUpdateTime = tm.Format("2006-01-02 15:04:05")
+	c.HomeWallpaper = "/static/images/bg.jpeg?default"
 
 	c.OAUTH2Config = &oauth2.Config{
 		ClientID:     c.OAuthClientId,
