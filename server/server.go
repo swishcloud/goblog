@@ -6,9 +6,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
-
-	"github.com/swishcloud/gostudy/keygenerator"
 
 	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/gostudy/common"
@@ -62,15 +61,18 @@ func (s *GoBlogServer) updateHomeWallpaper() error {
 	if err != nil {
 		return err
 	}
-	err = common.DownloadFile(s.rac, url, "static/images/bg.jpeg")
-	if err != nil {
-		return err
+	reg := regexp.MustCompile("id=[^&]+")
+	filename := reg.FindString(url)
+	runes := []rune(filename)
+	filename = string(runes[3:])
+	if filename != s.config.HomeWallpaper {
+		file_path := s.config.FileLocation + `/image/` + filename
+		err = common.DownloadFile(s.rac, url, file_path)
+		if err != nil {
+			return err
+		}
+		s.config.HomeWallpaper = filename
 	}
-	random, err := keygenerator.NewKey(4, false, false, false, true)
-	if err != nil {
-		return err
-	}
-	s.config.HomeWallpaper = "/static/images/bg.jpeg?" + random
 	return nil
 }
 
