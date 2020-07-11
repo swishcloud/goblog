@@ -3,9 +3,13 @@ package server
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"regexp"
 	"time"
 
@@ -13,12 +17,16 @@ import (
 	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/goweb"
 	"golang.org/x/oauth2"
+	"gopkg.in/yaml.v2"
 )
+
+const cache_dir string = ".cache"
 
 type GoBlogServer struct {
 	engine          *goweb.Engine
 	storage         storage.Storage
 	config          *Config
+	FileCache       *FileCache
 	skip_tls_verify bool
 	httpClient      *http.Client
 	rac             *common.RestApiClient
@@ -28,6 +36,11 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s := new(GoBlogServer)
 	s.rac = common.NewRestApiClient(skip_tls_verify)
 	s.config = readConfig(configPath)
+	s.FileCache = new(FileCache)
+	err := s.FileCache.reload()
+	if err != nil {
+		panic(err)
+	}
 	s.skip_tls_verify = skip_tls_verify
 	s.httpClient = &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: skip_tls_verify}}}
 	http.DefaultClient = s.httpClient
@@ -65,13 +78,20 @@ func (s *GoBlogServer) updateHomeWallpaper() error {
 	filename := reg.FindString(url)
 	runes := []rune(filename)
 	filename = string(runes[3:])
-	if filename != s.config.HomeWallpaper {
-		file_path := s.config.FileLocation + `/image/` + filename
+	if filename != s.FileCache.HomeWallpaper {
+		dirPath, err := s.config.ImageDirPath()
+		if err != nil {
+			return err
+		}
+		file_path := path.Join(dirPath, filename)
 		err = common.DownloadFile(s.rac, url, file_path)
 		if err != nil {
 			return err
 		}
-		s.config.HomeWallpaper = filename
+		s.FileCache.HomeWallpaper = filename
+		s.FileCache.Save()
+	} else {
+		log.Println("home wallpaper is up to date,skip downloading")
 	}
 	return nil
 }
@@ -86,7 +106,7 @@ func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
 }
 
 func (s *GoBlogServer) NewPageModel(ctx *goweb.Context, title string, data interface{}) *PageModel {
-	m := &PageModel{WebSiteName: s.config.WebsiteName, Data: data, LastUpdateTime: s.config.LastUpdateTime, MobileCompatible: true, Config: *s.config}
+	m := &PageModel{WebSiteName: s.config.WebsiteName, Data: data, LastUpdateTime: s.config.LastUpdateTime, MobileCompatible: true, Config: *s.config, FileCache: s.FileCache}
 	m.Path = ctx.Request.URL.Path
 	m.RequestUri = ctx.Request.RequestURI
 	m.Request = ctx.Request
@@ -119,13 +139,32 @@ type Config struct {
 
 	//not read from configuration file
 	LastUpdateTime string
-	HomeWallpaper  string
 
 	OAUTH2Config           *oauth2.Config
 	JWKJsonUrl             string
 	OAuthLogoutRedirectUrl string
 	OAuthLogoutUrl         string
 	IntrospectTokenURL     string
+}
+
+func (config *Config) ImageDirPath() (string, error) {
+	if config.FileLocation == "" {
+		return "", errors.New("FileLocation value is empty")
+	}
+	path := path.Join(config.FileLocation, "image")
+	if err := os.Mkdir(path, os.ModePerm); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	return path, nil
+}
+
+func (config *Config) cachePath(filename string) (string, error) {
+	path := path.Join(cache_dir, filename)
+	dir := filepath.Dir(path)
+	if err := os.Mkdir(dir, os.ModePerm); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	return path, nil
 }
 
 func readConfig(filePath string) *Config {
@@ -141,7 +180,6 @@ func readConfig(filePath string) *Config {
 	}
 	tm := info.ModTime().Local()
 	c.LastUpdateTime = tm.Format("2006-01-02 15:04:05")
-	c.HomeWallpaper = "/static/images/bg.jpeg?default"
 
 	c.OAUTH2Config = &oauth2.Config{
 		ClientID:     c.OAuthClientId,
@@ -183,4 +221,43 @@ func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 		model := hw.s.NewPageModel(ctx, "ERROR", data)
 		ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
 	}
+}
+
+type FileCache struct {
+	HomeWallpaper string
+	config        *Config
+}
+
+func (cache *FileCache) reload() error {
+	path, err := cache.path()
+	if err != nil {
+		return err
+	}
+	exist, err := common.CheckIfFileExits(path)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		return nil
+	}
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return yaml.Unmarshal(b, cache)
+}
+func (cache *FileCache) path() (string, error) {
+	return cache.config.cachePath("filecache.yaml")
+}
+func (cache *FileCache) Save() error {
+	out, err := yaml.Marshal(cache)
+	if err != nil {
+		return err
+	}
+	path, err := cache.path()
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(path, out, os.ModePerm)
+	return err
 }

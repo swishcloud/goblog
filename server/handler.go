@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strconv"
 	"time"
@@ -92,6 +93,7 @@ type PageModel struct {
 	LastUpdateTime   string
 	MobileCompatible bool
 	Config           Config
+	FileCache        *FileCache
 }
 
 func (s *GoBlogServer) AuthMiddleware() goweb.HandlerFunc {
@@ -524,7 +526,11 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 			panic(err)
 		}
 		uuid := uuid.New().String() + ".png"
-		path := s.config.FileLocation + `/image/` + uuid
+		dirPath, err := s.config.ImageDirPath()
+		if err != nil {
+			panic(err)
+		}
+		path := path.Join(dirPath, uuid)
 		url := "/src/image/" + uuid
 		out, err := os.Create(path)
 		defer out.Close()
