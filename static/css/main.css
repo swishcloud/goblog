@@ -86,7 +86,7 @@ ul {
     .container > .row {
         margin: 0;
     }
-    body{
+    .big-pic{
         background: none !important
     }
 }
