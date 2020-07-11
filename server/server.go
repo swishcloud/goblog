@@ -128,6 +128,7 @@ func (s *GoBlogServer) NewPageModel(ctx *goweb.Context, title string, data inter
 type Config struct {
 	FileLocation      string
 	Host              string
+	Website_domain    string
 	SqlDataSourceName string
 	WebsiteName       string
 	Key               string

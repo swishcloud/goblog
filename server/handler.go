@@ -610,7 +610,7 @@ func (s *GoBlogServer) checkFriendlyLink(pageLink string) error {
 	if err != nil {
 		return err
 	}
-	err = checkIfContaineLink(s.rac, pageLink, "https://"+s.config.Host)
+	err = checkIfContaineLink(s.rac, pageLink, "https://"+s.config.Website_domain)
 	if err != nil {
 		return err
 	}
