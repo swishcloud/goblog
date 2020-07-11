@@ -33,7 +33,9 @@ p {
     opacity: 0.1;
     z-index: 10000;
 }
-
+.big-pic{
+    background-size: 100%,100%;position:fixed;width:100%;height: 100%;z-index: -100;top: 0;
+}
 .box-one {
     border: 1px solid rgba(0, 0, 0, .08);
     border-radius: 4px;

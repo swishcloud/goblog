@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="/static/css/navbar.css">
     <link rel="stylesheet" href="/static/fontawesome-free-5.9.0-web/css/all.css">
 </head>
-<body style="background: url(/src/image/{{.FileCache.HomeWallpaper}});background-size: 100%,100%;">
+<body>
 <div class="nav">
     <div style="display:flex;align-items:center;">
         <div class="brand"><a href="/">{{.WebSiteName}}</a></div>
@@ -70,6 +70,7 @@
         </div>
     </div>
 </div>
+<div class="big-pic" style="background-image: url(/src/image/{{.FileCache.HomeWallpaper}});"></div>
 <script src="/static/js/jquery-3.4.1.min.js"></script>
 <script src="/static/js/navbar.js"></script>
 <script src="/static/js/main.js"></script>
