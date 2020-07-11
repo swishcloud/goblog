@@ -36,7 +36,7 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s := new(GoBlogServer)
 	s.rac = common.NewRestApiClient(skip_tls_verify)
 	s.config = readConfig(configPath)
-	s.FileCache = new(FileCache)
+	s.FileCache = &FileCache{config: s.config}
 	err := s.FileCache.reload()
 	if err != nil {
 		panic(err)
@@ -159,9 +159,9 @@ func (config *Config) ImageDirPath() (string, error) {
 }
 
 func (config *Config) cachePath(filename string) (string, error) {
-	path := path.Join(cache_dir, filename)
+	path := path.Join(config.FileLocation, cache_dir, filename)
 	dir := filepath.Dir(path)
-	if err := os.Mkdir(dir, os.ModePerm); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 	return path, nil
