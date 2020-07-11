@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -28,22 +31,26 @@ import (
 const session_user_key = "session_user"
 const csrf_state_cookie_name = "crft_state"
 const (
-	PATH_ARTICLELIST    = "/articlelist"
-	PATH_ARTICLEEDIT    = "/articleedit"
-	PATH_ARTICLESAVE    = "/articlesave"
-	PATH_ARTICLEDELETE  = "/articledelete"
-	PATH_ARTICLELOCK    = "/articlelock"
-	PATH_LOGIN          = "/login"
-	PATH_LOGIN_CALLBACK = "/login-callback"
-	PATH_LOGOUT         = "/logout"
-	PATH_CATEGORYLIST   = "/categories"
-	PATH_CATEGORYEDIT   = "/categoryedit"
-	PATH_CATEGORYSAVE   = "/categorysave"
-	PATH_CATEGORYDELETE = "/categorydelete"
-	PATH_SETLEVELTWOPWD = "/setlevel2pwd"
-	PATH_PROFILE        = "/profile"
-	PATH_UPLOAD         = "/upload"
-	PATH_WEBSOCKET      = "/ws"
+	PATH_ARTICLELIST             = "/articlelist"
+	PATH_ARTICLEEDIT             = "/articleedit"
+	PATH_ARTICLESAVE             = "/articlesave"
+	PATH_ARTICLEDELETE           = "/articledelete"
+	PATH_ARTICLELOCK             = "/articlelock"
+	PATH_LOGIN                   = "/login"
+	PATH_LOGIN_CALLBACK          = "/login-callback"
+	PATH_LOGOUT                  = "/logout"
+	PATH_CATEGORYLIST            = "/categories"
+	PATH_CATEGORYEDIT            = "/categoryedit"
+	PATH_CATEGORYSAVE            = "/categorysave"
+	PATH_CATEGORYDELETE          = "/categorydelete"
+	PATH_SETLEVELTWOPWD          = "/setlevel2pwd"
+	PATH_PROFILE                 = "/profile"
+	PATH_UPLOAD                  = "/upload"
+	PATH_FriendlyLink            = "/friendly-link"
+	PATH_FriendlyLinkApply       = "/friendly-link-apply"
+	PATH_FriendlyLinkApplyList   = "/friendly-link-apply-list"
+	PATH_FriendlyLinkApplyActive = "/friendly_link_apply_active"
+	PATH_WEBSOCKET               = "/ws"
 )
 
 func (s *GoBlogServer) BindHandlers() {
@@ -77,6 +84,11 @@ func (s *GoBlogServer) BindHandlers() {
 	auth.POST(PATH_SETLEVELTWOPWD, s.SetLevelTwoPwdPost())
 	auth.GET(PATH_PROFILE, s.Profile())
 	auth.POST(PATH_UPLOAD, s.Upload())
+	group.GET(PATH_FriendlyLink, s.FriendlyLink())
+	group.GET(PATH_FriendlyLinkApply, s.FriendlyLinkApply())
+	group.POST(PATH_FriendlyLinkApply, s.FriendlyLinkApplyPOST())
+	group.GET(PATH_FriendlyLinkApplyList, s.FriendlyLinkApplyList())
+	group.PUT(PATH_FriendlyLinkApplyActive, s.FriendlyLinkApplyActivePUT())
 }
 
 type PageModel struct {
@@ -551,6 +563,103 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 	}
 }
 
+func (s *GoBlogServer) FriendlyLink() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		links := s.MemoryCache.FriendlyLinks(true)
+		ctx.RenderPage(s.NewPageModel(ctx, "友情链接", links), "templates/layout.html", "templates/friendlylink.html")
+
+	}
+}
+func (s *GoBlogServer) FriendlyLinkApply() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		ctx.RenderPage(s.NewPageModel(ctx, "友链申请", nil), "templates/layout.html", "templates/leftRightLayout.html", "templates/friendlylinkapply.html")
+
+	}
+}
+func (s *GoBlogServer) FriendlyLinkApplyPOST() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		name := ctx.Request.FormValue("name")
+		description := ctx.Request.FormValue("description")
+		pageLink := strings.TrimSpace(ctx.Request.FormValue("pageLink"))
+		err := s.checkFriendlyLink(pageLink)
+		if err != nil {
+			ctx.Failed(err.Error())
+			return
+		}
+		u, err := url.Parse(pageLink)
+		if err != nil {
+			ctx.Failed("The URL format is error")
+			return
+		}
+		s.GetStorage(ctx).NewFriendlyLink(name, u.Host, description, pageLink)
+		ctx.Success(nil)
+	}
+}
+func (s *GoBlogServer) checkFriendlyLink(pageLink string) error {
+	u, err := url.Parse(pageLink)
+	if err != nil {
+		return errors.New("The URL format is error")
+	}
+	if strings.ToLower(u.Scheme) != "https" {
+		return errors.New("Only supports HTTPS scheme")
+	}
+
+	home_url := "https://" + u.Host
+
+	err = checkIfContaineLink(s.rac, home_url, u.Path)
+	if err != nil {
+		return err
+	}
+	err = checkIfContaineLink(s.rac, pageLink, "https://"+s.config.Host)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func checkIfContaineLink(rac *common.RestApiClient, url, link string) error {
+	rar := common.NewRestApiRequest("GET", url, nil)
+	resp, err := rac.Do(rar)
+	if err != nil || resp.StatusCode != 200 {
+		return errors.New("cannot access page at " + url + " normally")
+	}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return errors.New("cannot access page at " + url + " normally")
+	}
+	html := string(b)
+	regex := regexp.MustCompile("<a.+?</a>")
+	found := regex.FindAllString(html, -1)
+	ok := false
+	for _, item := range found {
+		if strings.Index(item, link+`"`) != -1 {
+			ok = true
+		}
+	}
+	if !ok {
+		return errors.New("The page at " + url + " does not contain LINK of " + link)
+	}
+	return nil
+}
+
+func (s *GoBlogServer) FriendlyLinkApplyList() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		links := s.MemoryCache.FriendlyLinks(true)
+		ctx.RenderPage(s.NewPageModel(ctx, "友链申请列表", links), "templates/layout.html", "templates/friendlylinkapplylist.html")
+
+	}
+}
+func (s *GoBlogServer) FriendlyLinkApplyActivePUT() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		id := ctx.Request.FormValue("id")
+		val := ctx.Request.FormValue("val")
+		active, err := strconv.ParseBool(val)
+		if err != nil {
+			panic(err)
+		}
+		s.GetStorage(ctx).SetFriendlyLinkActiveStatus(id, active)
+		ctx.Success(nil)
+	}
+}
 func (s *GoBlogServer) ErrorPage() goweb.ErrorPageFunc {
 	return func(context *goweb.Context, status int, desc string) {
 		context.RenderPage(s.NewPageModel(context, string(status), ErrorPageModel{Status: status, Desc: desc}), "templates/layout.html", "templates/error.html")

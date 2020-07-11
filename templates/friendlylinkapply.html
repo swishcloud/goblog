@@ -1,0 +1,44 @@
+{{define "left"}}
+<div class="container" style="background-color: white;padding:20px;">
+                <form class="apply-form" method="post">
+                        <div id="error"></div>
+                        <div class="form-group">
+                            <label>网站名称</label>
+                            <input type="text" class="form-control" name="name" placeholder="网站名称" required>
+                        </div>
+                        <div class="form-group">
+                            <label>网站描述</label>
+                            <input type="text" class="form-control" name="description" placeholder="网站描述" required> 
+                        </div>
+                        <div class="form-group">
+                            <label>友链悬挂地址</label>
+                            <input type="text" class="form-control" name="pageLink" placeholder="友链悬挂地址" required>
+                        </div>
+                        <button  type="submit" class="btn btn-primary" act>提交</button>
+                    </form>
+                    <div class="result" style="display: none;">
+                            <span class="my-5" >Application successful, pending review!</span>
+                    </div>
+</div>
+</div>
+{{end}}
+
+{{define "right"}}
+{{end}}
+{{define "script"}}
+<script>
+                app.ajaxSubmit($("form:last"), {
+                    before: function () {
+                        app.closeError($('#error'))
+                    },
+                    success: function (res) {
+                        if (res.error) {
+                            app.showError($('#error'), res.error)
+                        } else {
+                                $(".result").css("display","block")
+                                $(".apply-form").css("display","none")
+                        }
+                    }
+                })
+            </script>
+{{end}}

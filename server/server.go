@@ -7,11 +7,14 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"time"
+
+	"github.com/swishcloud/goblog/storage/models"
 
 	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/gostudy/common"
@@ -27,6 +30,7 @@ type GoBlogServer struct {
 	storage         storage.Storage
 	config          *Config
 	FileCache       *FileCache
+	MemoryCache     *MemoryCache
 	skip_tls_verify bool
 	httpClient      *http.Client
 	rac             *common.RestApiClient
@@ -37,6 +41,7 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s.rac = common.NewRestApiClient(skip_tls_verify)
 	s.config = readConfig(configPath)
 	s.FileCache = &FileCache{config: s.config}
+	s.MemoryCache = &MemoryCache{server: s}
 	err := s.FileCache.reload()
 	if err != nil {
 		panic(err)
@@ -53,7 +58,7 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 func (s *GoBlogServer) Serve() {
 	go s.periodicTask()
 	log.Println("listening on:", s.config.Host)
-	err := http.ListenAndServe(s.config.Host, s.engine)
+	err := http.ListenAndServeTLS(s.config.Host, s.config.Tls_cert_file, s.config.Tls_key_file, s.engine)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,11 +136,12 @@ type Config struct {
 	SmtpUsername      string
 	SmtpPassword      string
 	SmtpAddr          string
-	UseHttps          bool
 	OAuthClientId     string
 	OAuthTokenUrl     string
 	OAuthAuthUrl      string
 	OAuthSecret       string
+	Tls_cert_file     string
+	Tls_key_file      string
 
 	//not read from configuration file
 	LastUpdateTime string
@@ -203,7 +209,20 @@ type HandlerWidget struct {
 	s *GoBlogServer
 }
 
-func (*HandlerWidget) Pre_Process(ctx *goweb.Context) {
+func (hw *HandlerWidget) Pre_Process(ctx *goweb.Context) {
+	referer := ctx.Request.Header.Get("Referer")
+	if referer == "" {
+		return
+	}
+	u, err := url.Parse(referer)
+	if err != nil {
+		panic(err)
+	}
+	for _, item := range hw.s.MemoryCache.FriendlyLinks(false) {
+		if item.Website_url == u.Host {
+			hw.s.GetStorage(ctx).FreshFriendlyLinkAccessTime(item.Id)
+		}
+	}
 }
 func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 	m := ctx.Data["storage"]
@@ -260,4 +279,18 @@ func (cache *FileCache) Save() error {
 	}
 	err = ioutil.WriteFile(path, out, os.ModePerm)
 	return err
+}
+
+type MemoryCache struct {
+	friendlyLinks []models.FriendlyLink
+	server        *GoBlogServer
+}
+
+func (cache *MemoryCache) FriendlyLinks(forceRefresh bool) []models.FriendlyLink {
+	if cache.friendlyLinks == nil || forceRefresh {
+		store := storage.NewSQLManager(cache.server.config.SqlDataSourceName)
+		cache.friendlyLinks = store.GetFriendlyLinks()
+		store.Commit()
+	}
+	return cache.friendlyLinks
 }

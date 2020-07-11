@@ -21,6 +21,11 @@ type Storage interface {
 	GetUserByOP(userid, issuer string) (*models.UserDto, error)
 	NewUser(username, op_issuer, op_userid, email, avatar string)
 	NewCategory(name string, userId int)
+	NewFriendlyLink(website_name, website_url, description, friendly_link_page_url string)
+	GetFriendlyLinks() []models.FriendlyLink
+	FreshFriendlyLinkAccessTime(id string)
+	SetFriendlyLinkActiveStatus(id string, active bool)
+	DeleteFriendlyLink(id string)
 	Commit()
 	Rollback()
 }

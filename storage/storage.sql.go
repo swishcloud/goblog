@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/swishcloud/goblog/storage/models"
 	"github.com/swishcloud/gostudy/aesencryption"
 	"github.com/swishcloud/gostudy/common"
@@ -282,5 +284,35 @@ func (m *SQLManager) NewUser(username, op_issuer, op_userid, email, avatar strin
 func (m *SQLManager) NewCategory(name string, userId int) {
 	m.Tx.MustExec(`INSERT INTO public.category(
 		name, insert_time,  is_deleted, user_id)
-		VALUES ($1,$2,$3,$4);`, name, time.Now(), false, userId)
+		VALUES ($1,$2,$3,$4);`, name, time.Now().UTC(), false, userId)
+}
+
+func (m *SQLManager) NewFriendlyLink(website_name, website_url, description, friendly_link_page_url string) {
+	id := uuid.New()
+	m.Tx.MustExec(`INSERT INTO public.friendly_link(
+		id, website_name,description, website_url, friendly_link_page_url, insert_time, access_time, is_approved, is_deleted)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);`, id, website_name, description, website_url, friendly_link_page_url, time.Now().UTC(), nil, false, false)
+}
+
+func (m *SQLManager) GetFriendlyLinks() []models.FriendlyLink {
+	rows := m.Tx.MustQuery(`SELECT id, description, website_url, friendly_link_page_url, insert_time, access_time, is_approved, is_deleted, website_name
+	FROM public.friendly_link where is_deleted=false order by access_time desc;`)
+	result := []models.FriendlyLink{}
+	for rows.Next() {
+		item := models.FriendlyLink{}
+		rows.MustScan(&item.Id, &item.Description, &item.Website_url, &item.Friendly_link_page_url, &item.Insert_time, &item.Access_time, &item.Is_approved, &item.Is_deleted, &item.Website_name)
+		result = append(result, item)
+	}
+	return result
+}
+
+func (m *SQLManager) FreshFriendlyLinkAccessTime(id string) {
+	m.Tx.MustExec(`update public.friendly_link set access_time=$1 where id=$2`, time.Now().UTC(), id)
+}
+func (m *SQLManager) SetFriendlyLinkActiveStatus(id string, active bool) {
+	m.Tx.MustExec(`update public.friendly_link set is_approved=$1 where id=$2`, active, id)
+}
+
+func (m *SQLManager) DeleteFriendlyLink(id string) {
+	m.Tx.MustExec(`update public.friendly_link set is_deleted=true where id=$1`, id)
 }

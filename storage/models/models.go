@@ -37,3 +37,15 @@ type WsmessageDto struct {
 	InsertTime string
 	Msg        string
 }
+
+type FriendlyLink struct {
+	Id                     string
+	Description            string
+	Website_url            string
+	Friendly_link_page_url string
+	Insert_time            time.Time
+	Access_time            *time.Time
+	Is_approved            bool
+	Is_deleted             bool
+	Website_name           string
+}

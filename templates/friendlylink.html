@@ -1,0 +1,16 @@
+{{define "content"}}
+<div class="container" style="background-color: white;padding:20px;">
+        <h5>友情链接:</h5>
+<div class="mb-5">
+                {{range .}}
+                        {{if .Is_approved}}
+                        <span class="mx-2"><a target="_blank" href="https://{{.Website_url}}">{{.Website_name}}</a></span>
+                        {{end}}
+                </tr>
+                {{end}}
+        <span class="mx-2"><a href="/friendly-link-apply" style="text-decoration: underline;color:steelblue">申请</a></span>
+</div>
+</div>
+{{end}}
+{{define "script"}}
+{{end}}

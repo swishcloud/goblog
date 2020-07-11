@@ -96,3 +96,7 @@ ul {
 .zoom:hover {
     transform: scale(1.2);
 }
+
+.footer a,.footer span{
+    color: #73777a;font-size: 14px;
+}

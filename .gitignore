@@ -19,3 +19,4 @@ log
 debug
 .dist
 .data/
+.cache/

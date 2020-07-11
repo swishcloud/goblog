@@ -1,0 +1,59 @@
+{{define "content"}}
+<div class="container" style="background-color: white;padding:20px;">
+               <table class="table">
+                   <tr><th>name</th>
+                    <th>description</th>
+                    <th>website_url</th>
+                    <th>friendly_link_page_url</th>
+                    <th>application_time</th>
+                    <th>access_time</th>
+                    <th>is_active</th>
+                    <th>#</th></tr>
+                    
+    {{range .}}
+    <tr id="{{.Id}}">
+        <td>{{.Website_name}}</td>
+        <td>{{.Description}}</td>
+        <td>{{.Website_url}}</td>
+        <td>{{.Friendly_link_page_url}}</td>
+        <td>{{formatTime .Insert_time ""}}</td>
+        <td>{{if .Access_time}}{{formatTime .Access_time ""}}{{end}}</td>
+        <td>{{.Is_approved}}</td>
+        <td>
+            {{if .Is_approved}}
+            <button class="deactive btn btn-sm btn-danger">deactive</button>
+            {{else}}
+            <button class="active btn btn-sm btn-success">active</button>
+            {{end}}
+        </td>
+    </tr>
+    {{end}}
+               </table>
+</div>
+</div>
+{{end}}
+
+{{define "script"}}
+<script>
+                $(document).on("click",".deactive,.active",function(){
+                    let id=$(this).parents("tr").attr("id")
+                    let active=$(this).hasClass("active")
+                    let url="/friendly_link_apply_active?id="+id+"&val="+active
+                    $.ajax({
+                        url: url,    //Your api url
+                    type: 'PUT',   //type is any HTTP method
+                    data: {
+                        data: null
+                    },      //Data as js object
+                    success: function (resp) {
+                        if (resp.error!=null){
+                            alert(resp.error)
+                        }else{
+                        location.reload()
+                        }
+                    }
+                        
+                        })
+                })
+</script>
+{{end}}
