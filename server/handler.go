@@ -356,6 +356,9 @@ func (s *GoBlogServer) ArticleLockPost() goweb.HandlerFunc {
 func (s *GoBlogServer) Login() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		state, err := keygenerator.NewKey(20, false, false, false, false)
+		if err != nil {
+			panic(err)
+		}
 		state = base64.URLEncoding.EncodeToString([]byte(state))
 		cookie := http.Cookie{Name: csrf_state_cookie_name, Value: state, Path: "/"}
 		http.SetCookie(ctx.Writer, &cookie)
@@ -370,13 +373,12 @@ func (s *GoBlogServer) Login() goweb.HandlerFunc {
 func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		state := ctx.Request.URL.Query().Get("state")
+		common.DelCookie(ctx.Writer, csrf_state_cookie_name)
 		if cookie, err := ctx.Request.Cookie(csrf_state_cookie_name); err != nil {
-			common.DelCookie(ctx.Writer, csrf_state_cookie_name)
 			ctx.Failed("state cookie does not present")
 			return
 		} else {
 			if cookie.Value != state {
-				common.DelCookie(ctx.Writer, csrf_state_cookie_name)
 				ctx.Failed("csrf verification failed")
 				return
 			}
