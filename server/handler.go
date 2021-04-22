@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/swishcloud/goblog/storage/models"
@@ -136,6 +136,7 @@ func (m UserArticleModel) GetCategoryUrl(name string) string {
 
 func (s *GoBlogServer) GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
 	if s, err := auth.GetSessionByToken(s.rac, ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify); err != nil {
+		log.Println("GET USER FAILED:",err)
 		return nil, err
 	} else {
 		if u, ok := s.Data[session_user_key].(*models.UserDto); ok {
@@ -404,6 +405,7 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 			}
 		}
 		session.Data[session_user_key] = user
+		log.Println("A user logged successfully:"+user.UserName)
 		http.Redirect(ctx.Writer, ctx.Request, "/", 302)
 	}
 }
