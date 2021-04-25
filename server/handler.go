@@ -17,9 +17,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"log"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	"github.com/swishcloud/goblog/internal"
 	"github.com/swishcloud/goblog/storage/models"
 	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/gostudy/keygenerator"
@@ -136,7 +137,7 @@ func (m UserArticleModel) GetCategoryUrl(name string) string {
 
 func (s *GoBlogServer) GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
 	if s, err := auth.GetSessionByToken(s.rac, ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify); err != nil {
-		log.Println("GET USER FAILED:",err)
+		internal.Logger.Println("GET USER FAILED:", err)
 		return nil, err
 	} else {
 		if u, ok := s.Data[session_user_key].(*models.UserDto); ok {
@@ -405,7 +406,7 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 			}
 		}
 		session.Data[session_user_key] = user
-		log.Println("A user logged successfully:"+user.UserName)
+		internal.Logger.Println("A user logged successfully:" + user.UserName)
 		http.Redirect(ctx.Writer, ctx.Request, "/", 302)
 	}
 }
@@ -569,7 +570,10 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 
 func (s *GoBlogServer) FriendlyLink() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		links := s.MemoryCache.FriendlyLinks(true)
+		links, err := s.MemoryCache.FriendlyLinks(true)
+		if err != nil {
+			panic(err)
+		}
 		ctx.RenderPage(s.NewPageModel(ctx, "友情链接", links), "templates/layout.html", "templates/friendlylink.html")
 
 	}
@@ -647,7 +651,10 @@ func checkIfContaineLink(rac *common.RestApiClient, url, link string) error {
 
 func (s *GoBlogServer) FriendlyLinkApplyList() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		links := s.MemoryCache.FriendlyLinks(true)
+		links, err := s.MemoryCache.FriendlyLinks(true)
+		if err != nil {
+			panic(err)
+		}
 		ctx.RenderPage(s.NewPageModel(ctx, "友链申请列表", links), "templates/layout.html", "templates/friendlylinkapplylist.html")
 
 	}

@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/spf13/cobra"
+	"github.com/swishcloud/goblog/internal"
 )
 
 var rootCmd = &cobra.Command{
@@ -15,7 +15,12 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() {
+	defer func() {
+		if err := recover(); err != nil {
+			internal.Logger.Panic(err)
+		}
+	}()
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }

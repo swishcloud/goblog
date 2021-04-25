@@ -294,16 +294,22 @@ func (m *SQLManager) NewFriendlyLink(website_name, website_url, description, fri
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);`, id, website_name, description, website_url, friendly_link_page_url, time.Now().UTC(), nil, false, false)
 }
 
-func (m *SQLManager) GetFriendlyLinks() []models.FriendlyLink {
-	rows := m.Tx.MustQuery(`SELECT id, description, website_url, friendly_link_page_url, insert_time, access_time, is_approved, is_deleted, website_name
+func (m *SQLManager) GetFriendlyLinks() ([]models.FriendlyLink, error) {
+	rows, err := m.Tx.Query(`SELECT id, description, website_url, friendly_link_page_url, insert_time, access_time, is_approved, is_deleted, website_name
 	FROM public.friendly_link where is_deleted=false order by access_time desc;`)
+	if err != nil {
+		return nil, err
+	}
 	result := []models.FriendlyLink{}
 	for rows.Next() {
 		item := models.FriendlyLink{}
-		rows.MustScan(&item.Id, &item.Description, &item.Website_url, &item.Friendly_link_page_url, &item.Insert_time, &item.Access_time, &item.Is_approved, &item.Is_deleted, &item.Website_name)
+		err = rows.Scan(&item.Id, &item.Description, &item.Website_url, &item.Friendly_link_page_url, &item.Insert_time, &item.Access_time, &item.Is_approved, &item.Is_deleted, &item.Website_name)
 		result = append(result, item)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return result
+	return result, nil
 }
 
 func (m *SQLManager) FreshFriendlyLinkAccessTime(id string) {

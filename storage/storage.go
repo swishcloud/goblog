@@ -22,7 +22,7 @@ type Storage interface {
 	NewUser(username, op_issuer, op_userid, email, avatar string)
 	NewCategory(name string, userId int)
 	NewFriendlyLink(website_name, website_url, description, friendly_link_page_url string)
-	GetFriendlyLinks() []models.FriendlyLink
+	GetFriendlyLinks() ([]models.FriendlyLink, error)
 	FreshFriendlyLinkAccessTime(id string)
 	SetFriendlyLinkActiveStatus(id string, active bool)
 	DeleteFriendlyLink(id string)

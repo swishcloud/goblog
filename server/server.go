@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,10 +15,12 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/swishcloud/goblog/internal"
 	"github.com/swishcloud/goblog/storage/models"
 
 	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/gostudy/common"
+	"github.com/swishcloud/gostudy/logger"
 	"github.com/swishcloud/goweb"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
@@ -52,12 +55,13 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s.engine = goweb.Default()
 	s.engine.ConcurrenceNumSem = make(chan int, s.config.ConcurrenceNum)
 	s.engine.WM.HandlerWidget = &HandlerWidget{s: s}
+	s.engine.Logger = logger.NewLogger(internal.LoggerWriter, "GOWEB")
 	s.BindHandlers()
 	return s
 }
 func (s *GoBlogServer) Serve() {
 	go s.periodicTask()
-	log.Println("listening on:", s.config.Host)
+	internal.Logger.Println("listening on:", s.config.Host)
 	err := http.ListenAndServeTLS(s.config.Host, s.config.Tls_cert_file, s.config.Tls_key_file, s.engine)
 	if err != nil {
 		log.Fatal(err)
@@ -67,14 +71,19 @@ func (s *GoBlogServer) periodicTask() {
 	for {
 		err := s.updateHomeWallpaper()
 		if err != nil {
-			log.Println("update home wallpaper from Bing failed")
+			internal.Logger.Println("update home wallpaper from Bing failed:", err)
 		} else {
-			log.Println("update home wallpaper from Bing succeed")
+			internal.Logger.Println("update home wallpaper from Bing succeed")
 		}
 		time.Sleep(time.Minute * 60)
 	}
 }
-func (s *GoBlogServer) updateHomeWallpaper() error {
+func (s *GoBlogServer) updateHomeWallpaper() (err error) {
+	defer func() {
+		if tmp := recover(); err != nil {
+			err = errors.New(fmt.Sprint(tmp))
+		}
+	}()
 	url, err := common.GetBingHomeWallpaper(s.rac)
 	if err != nil {
 		return err
@@ -96,7 +105,7 @@ func (s *GoBlogServer) updateHomeWallpaper() error {
 		s.FileCache.HomeWallpaper = filename
 		s.FileCache.Save()
 	} else {
-		log.Println("home wallpaper is up to date,skip downloading")
+		internal.Logger.Println("home wallpaper is up to date,skip downloading")
 	}
 	return nil
 }
@@ -219,7 +228,12 @@ func (hw *HandlerWidget) Pre_Process(ctx *goweb.Context) {
 	if err != nil {
 		panic(err)
 	}
-	for _, item := range hw.s.MemoryCache.FriendlyLinks(false) {
+	links, err := hw.s.MemoryCache.FriendlyLinks(false)
+	if err != nil {
+		internal.Logger.Println("FriendlyLinks ERROR:", err)
+		return
+	}
+	for _, item := range links {
 		if item.Website_url == u.Host {
 			hw.s.GetStorage(ctx).FreshFriendlyLinkAccessTime(item.Id)
 		}
@@ -228,11 +242,7 @@ func (hw *HandlerWidget) Pre_Process(ctx *goweb.Context) {
 func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 	m := ctx.Data["storage"]
 	if m != nil {
-		if ctx.Ok {
-			m.(storage.Storage).Commit()
-		} else {
-			m.(storage.Storage).Rollback()
-		}
+		m.(storage.Storage).Commit()
 	}
 	if ctx.Err != nil {
 		data := struct {
@@ -253,7 +263,7 @@ func (cache *FileCache) reload() error {
 	if err != nil {
 		return err
 	}
-	exist, err := common.CheckIfFileExits(path)
+	exist, err := common.CheckIfFileExists(path)
 	if err != nil {
 		return err
 	}
@@ -287,11 +297,15 @@ type MemoryCache struct {
 	server        *GoBlogServer
 }
 
-func (cache *MemoryCache) FriendlyLinks(forceRefresh bool) []models.FriendlyLink {
+func (cache *MemoryCache) FriendlyLinks(forceRefresh bool) ([]models.FriendlyLink, error) {
 	if cache.friendlyLinks == nil || forceRefresh {
 		store := storage.NewSQLManager(cache.server.config.SqlDataSourceName)
-		cache.friendlyLinks = store.GetFriendlyLinks()
+		links, err := store.GetFriendlyLinks()
+		if err != nil {
+			return nil, err
+		}
+		cache.friendlyLinks = links
 		store.Commit()
 	}
-	return cache.friendlyLinks
+	return cache.friendlyLinks, nil
 }
