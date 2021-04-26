@@ -210,6 +210,7 @@ func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		categoryList := s.GetStorage(ctx).GetCategories(s.MustGetLoginUser(ctx).Id, 0)
 		model := ArticleEditModel{CategoryList: categoryList, UserId: s.MustGetLoginUser(ctx).Id}
+		model.Article.ArticleType = 2
 		if article, ok := ctx.Data["article"].(*models.ArticleDto); ok {
 			model.Article = *article
 		} else {
