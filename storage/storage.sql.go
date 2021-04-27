@@ -58,12 +58,24 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 	)
 	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &categoryId, &userId, &cover)
 	if err != nil {
-		return nil
+		panic(err)
 	}
 	title, err = aesencryption.Decrypt([]byte(key), title)
+	if err != nil {
+		panic(err)
+	}
 	summary, err = aesencryption.Decrypt([]byte(key), summary)
+	if err != nil {
+		panic(err)
+	}
 	html, err = aesencryption.Decrypt([]byte(key), html)
+	if err != nil {
+		panic(err)
+	}
 	content, err = aesencryption.Decrypt([]byte(key), content)
+	if err != nil {
+		panic(err)
+	}
 	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryName string, secret_key string) []models.ArticleDto {
@@ -84,13 +96,13 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 	if categoryName == "" {
 		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id where title like $1 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and is_banned=false order by a.insert_time desc", "%"+key+"%")
 		if err != nil {
-			panic(err.Error())
+			panic(err)
 		}
 		rows = r
 	} else {
 		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id where b.name=$1 and title like $2 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and is_banned=false order by  a.insert_time desc", categoryName, "%"+key+"%")
 		if err != nil {
-			panic(err.Error())
+			panic(err)
 		}
 		rows = r
 	}
@@ -116,10 +128,21 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 			panic(err)
 		}
 		title, err = aesencryption.Decrypt([]byte(secret_key), title)
+		if err != nil {
+			panic(err)
+		}
 		summary, err = aesencryption.Decrypt([]byte(secret_key), summary)
+		if err != nil {
+			panic(err)
+		}
 		html, err = aesencryption.Decrypt([]byte(secret_key), html)
+		if err != nil {
+			panic(err)
+		}
 		content, err = aesencryption.Decrypt([]byte(secret_key), content)
-
+		if err != nil {
+			panic(err)
+		}
 		if articleType == 3 {
 			summary = ""
 			html = ""
