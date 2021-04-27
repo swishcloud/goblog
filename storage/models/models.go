@@ -8,17 +8,19 @@ type CategoryDto struct {
 }
 
 type ArticleDto struct {
-	Id           int
-	Title        string
-	Summary      string
-	Html         string
-	Content      string
-	InsertTime   time.Time
-	ArticleType  int
-	CategoryId   int
-	UserId       int
-	CategoryName string
-	Cover        *string
+	Id         int
+	Title      string
+	Summary    string
+	Html       string
+	Content    string
+	InsertTime time.Time
+	//1 public, 2 private, 3 locked, 4 backup, 5 shared.
+	ArticleType       int
+	ShareDeadlineTime *time.Time
+	CategoryId        int
+	UserId            int
+	CategoryName      string
+	Cover             *string
 }
 type UserDto struct {
 	Id          int

@@ -1,130 +1,159 @@
 {{define "content" }}
-    {{$categoryId:=.Article.CategoryId}}
-    {{$articleType:=.Article.ArticleType}}
-    <link rel="stylesheet" href="/static/highlight/highlight.min.css">
-    <link rel="stylesheet" type="text/css" href="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.css">
-    <style>
-        .fa-header:before {
-            content: "\f1dc";
-        }
+{{$categoryId:=.Article.CategoryId}}
+{{$articleType:=.Article.ArticleType}}
+{{$shareDeadlineTime:=""}}
+{{if .Article.ShareDeadlineTime}}
+{{$shareDeadlineTime = formatTime .Article.ShareDeadlineTime "2006-01-02T15:04"}}
+{{end}}
+<link rel="stylesheet" href="/static/highlight/highlight.min.css">
+<link rel="stylesheet" type="text/css" href="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.css">
+<style>
+    .fa-header:before {
+        content: "\f1dc";
+    }
 
-        .fa-picture-o:before {
-            content: "\f03e";
-        }
+    .fa-picture-o:before {
+        content: "\f03e";
+    }
 
-        .span-tip {
-            color: #9fa3b0;
-            line-height: 20px;
-            font-size: 12px;
+    .span-tip {
+        color: #9fa3b0;
+        line-height: 20px;
+        font-size: 12px;
+    }
+
+    @media (min-width: 1200px) {
+        .container {
+            padding: 20px 15px 20px 15px;
+            background-color: white;
         }
-    </style>
-    <div class="container">
-        <form action="/articlesave" method="post">
-            <input type="hidden" name="id" value="{{.Article.Id}}"/>
-            <input type="hidden" name="summary" id="summary"/>
-            <input type="hidden" name="html" id="html"/>
-            <input type="hidden" name="cover" id="cover"/>
-            <div id="error"></div>
-            <div class="form-group">
-                <label>标题</label>
-                <input type="text" class="form-control" name="title" placeholder="请输入标题" required
-                       value="{{.Article.Title}}">
-            </div>
-            <div class="form-group">
-                <label>正文</label>
-                <textarea id="content" class="form-control" name="content" rows="3" placeholder="正文内容..."
-                          required>{{.Article.Content}}</textarea>
-                <span class="span-tip">支持粘贴图片或拖放图片文件</span>
-            </div>
-            <div class="form-group">
-                <label>分类</label>
-                <select class="form-control col-lg-2" name="categoryId" required>
-                    {{range .CategoryList}}
-                        <option value="{{.Id}}" {{if eq $categoryId .Id}}selected{{end}}>{{.Name}}</option>
-                    {{end}}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>类型</label>
+    }
+</style>
+<div class="container">
+    <form action="/articlesave" method="post">
+        <input type="hidden" name="id" value="{{.Article.Id}}" />
+        <input type="hidden" name="summary" id="summary" />
+        <input type="hidden" name="html" id="html" />
+        <input type="hidden" name="cover" id="cover" />
+        <div id="error"></div>
+        <div class="form-group">
+            <label>标题</label>
+            <input type="text" class="form-control" name="title" placeholder="请输入标题" required
+                value="{{.Article.Title}}">
+        </div>
+        <div class="form-group">
+            <label>正文</label>
+            <textarea id="content" class="form-control" name="content" rows="3" placeholder="正文内容..."
+                required>{{.Article.Content}}</textarea>
+            <span class="span-tip">支持粘贴图片或拖放图片文件</span>
+        </div>
+        <div class="form-group">
+            <label>分类</label>
+            <select class="form-control col-lg-2" name="categoryId" required>
+                {{range .CategoryList}}
+                <option value="{{.Id}}" {{if eq $categoryId .Id}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>类型</label>
+            <div>
                 <select class="form-control col-lg-1" name="type" id="type">
-                    <option value="1" {{if eq $articleType 1}}selected{{end}}>公开</option>
                     <option value="2" {{if eq $articleType 2}}selected{{end}}>私有</option>
+                    <option value="1" {{if eq $articleType 1}}selected{{end}}>公开</option>
+                    <option value="5" {{if eq $articleType 5}}selected{{end}}>共享</option>
                     <option value="3" {{if eq $articleType 3}}selected{{end}}>加密</option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary">发布</button>
-        </form>
-    </div>
+            <div class="mt-2" id="shareDeadlineTimeDiv">
+                <label class="mt-2"> 截止日期：</label>
+                <input type="datetime-local" name="shareDeadlineTime" value='{{$shareDeadlineTime}}'>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">发布</button>
+    </form>
+</div>
 {{end}}
 
 {{define "script"}}
-    <script src="/static/highlight/highlight.min.js"></script>
-    <script src="/static/highlight/go.min.js"></script>
-    <script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
-    <script src="/static/js/marked.min.js"></script>
-    <script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
-    <script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
-    <script>
-        marked.setOptions({
-            highlight: function(code, lang) {
-                try{
-                    let result=hljs.highlight(lang, code, true, null)
-                    return result.value
-                }catch(e){
-                    console.log(e)
-                    return code
-                }
-            }
-        });
+<script src="/static/highlight/highlight.min.js"></script>
+<script src="/static/highlight/go.min.js"></script>
+<script src="/static/sparksuite-simplemde-markdown-editor-6abda7a/simplemde.js"></script>
+<script src="/static/js/marked.min.js"></script>
+<script src="/static/Rovak-InlineAttachment/inline-attachment.min.js"></script>
+<script src="/static/Rovak-InlineAttachment/codemirror-4.inline-attachment.min.js"></script>
+<script>
+    //change event of TYPE select
+    document.getElementById("type").addEventListener('change', function () {
+        if (this.value == 5) {
+            $("#shareDeadlineTimeDiv").css("display", "block")
+        } else {
+            $("#shareDeadlineTimeDiv").css("display", "none")
+        }
+    });
+    document.getElementById("type").dispatchEvent(new Event('change'));
 
-        var saved = false
-        var simplemde = new SimpleMDE({
-            element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,
-            previewRender: function (plainText) {
-                return marked(plainText, {breaks: true}); // Returns HTML from a custom parser
+    //markdown editor settings
+    marked.setOptions({
+        highlight: function (code, lang) {
+            try {
+                let result = hljs.highlight(lang, code, true, null)
+                return result.value
+            } catch (e) {
+                console.log(e)
+                return code
             }
-        });
-        inlineAttachment.editors.codemirror4.attach(simplemde.codemirror, {
-            uploadUrl: "upload",
-            uploadMethod: "post",
-            jsonFieldName: "downloadUrl",
-            uploadFieldName: "image",
-            onFileUploadResponse: function (res) {
-                console.log(res)
-            },
-            urlText: "![image]({filename})"
-        });
-        app.ajaxSubmit($("form:last"), {
-            before: function () {
-                app.closeError($('#error'))
+        }
+    });
 
-                var html = marked(simplemde.value(), {breaks: true});
-                var summary = html.replace(/(<([^>]+)>)/ig, " ");
-                $("#html").val(html)
-                $("#summary").val(summary)
+    var saved = false
+    var simplemde = new SimpleMDE({
+        element: $("#content")[0], autoDownloadFontAwesome: false, promptURLs: true,
+        previewRender: function (plainText) {
+            return marked(plainText, { breaks: true }); // Returns HTML from a custom parser
+        }
+    });
+    inlineAttachment.editors.codemirror4.attach(simplemde.codemirror, {
+        uploadUrl: "upload",
+        uploadMethod: "post",
+        jsonFieldName: "downloadUrl",
+        uploadFieldName: "image",
+        onFileUploadResponse: function (res) {
+            console.log(res)
+        },
+        urlText: "![image]({filename})"
+    });
+    app.ajaxSubmit($("form:last"), {
+        before: function () {
+            app.closeError($('#error'))
 
-                var imgs = $(html).find("img")
-                if (imgs.length > 0) {
-                    $("#cover").val(imgs.attr("src"))
-                }
+            var html = marked(simplemde.value(), { breaks: true });
+            var summary = html.replace(/(<([^>]+)>)/ig, " ");
+            $("#html").val(html)
+            $("#summary").val(summary)
+
+            var imgs = $(html).find("img")
+            if (imgs.length > 0) {
+                $("#cover").val(imgs.attr("src"))
             }
-            ,
-            success: function (res) {
-                if (res.error) {
-                    app.showError($('#error'), res.error)
-                } else {
-                    saved = true
-                    window.location.href = "/u/{{.UserId}}/post/" + res.data
-                }
+        }
+        ,
+        success: function (res) {
+            if (res.error) {
+                app.showError($('#error'), res.error)
+            } else {
+                saved = true
+                window.location.href = "/u/{{.UserId}}/post/" + res.data
             }
-        })
-        window.addEventListener('beforeunload', function (e) {
-            if (!saved) {
-                // Cancel the event
-                e.preventDefault();
-                // Chrome requires returnValue to be set
-                e.returnValue = '';
-            }
-        });
-    </script>
+        }
+    })
+    window.addEventListener('beforeunload', function (e) {
+        if (!saved) {
+            // Cancel the event
+            e.preventDefault();
+            // Chrome requires returnValue to be set
+            e.returnValue = '';
+        }
+    });
+</script>
 {{end}}

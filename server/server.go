@@ -110,6 +110,14 @@ func (s *GoBlogServer) updateHomeWallpaper() (err error) {
 	return nil
 }
 
+func (server *GoBlogServer) showErrorPage(ctx *goweb.Context, status int, msg string) {
+	data := struct {
+		Desc string
+	}{Desc: msg}
+	model := server.NewPageModel(ctx, "ERROR", data)
+	ctx.Writer.WriteHeader(status)
+	ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
+}
 func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
 	m := ctx.Data["storage"]
 	if m == nil {

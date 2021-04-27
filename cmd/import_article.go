@@ -1,21 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"log"
-	"time"
-
 	"github.com/spf13/cobra"
-	"github.com/swishcloud/goblog/internal"
-	"github.com/swishcloud/goblog/storage"
 )
 
 var importArticleCmd = &cobra.Command{
 	Use: "article",
 	Run: func(cmd *cobra.Command, args []string) {
-		source_path, err := cmd.Flags().GetString("file")
+		/*source_path, err := cmd.Flags().GetString("file")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -72,7 +64,7 @@ var importArticleCmd = &cobra.Command{
 
 		}
 		storage.Commit()
-		println("finished importing articles")
+		println("finished importing articles")*/
 	},
 }
 

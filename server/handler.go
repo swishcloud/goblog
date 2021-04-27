@@ -240,6 +240,24 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 		content := ctx.Request.PostForm.Get("content")
 		categoryId := ctx.Request.PostForm.Get("categoryId")
 		articleType := ctx.Request.PostForm.Get("type")
+		shareDeadlineTime := ctx.Request.PostForm.Get("shareDeadlineTime") + ":00Z"
+		var shareDeadlineTimePtr *time.Time
+		if shareDeadlineTime != "" {
+			tmp, err := time.Parse(time.RFC3339, shareDeadlineTime)
+			if err != nil {
+				panic(err)
+			}
+			c, err := ctx.Request.Cookie("tom")
+			if err != nil {
+				panic(err)
+			}
+			tom, err := strconv.Atoi(c.Value)
+			if err != nil {
+				panic(err)
+			}
+			tmp = tmp.Add(time.Duration(int64(time.Minute) * int64(tom))).UTC()
+			shareDeadlineTimePtr = &tmp
+		}
 		html := goweb.SanitizeHtml(ctx.Request.PostForm.Get("html"))
 		summary := ctx.Request.PostForm.Get("summary")
 
@@ -266,9 +284,9 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 		}
 		now := time.Now().UTC()
 		if intId == 0 {
-			intId = s.GetStorage(ctx).NewArticle(title, summary, html, content, s.MustGetLoginUser(ctx).Id, intArticleType, intCategoryId, s.config.PostKey, cover, nil, &now, nil, "New article by user")
+			intId = s.GetStorage(ctx).NewArticle(title, summary, html, content, s.MustGetLoginUser(ctx).Id, intArticleType, shareDeadlineTimePtr, intCategoryId, s.config.PostKey, cover, nil, &now, nil, "New article by user")
 		} else {
-			s.GetStorage(ctx).UpdateArticle(intId, title, summary, html, content, intArticleType, categoryId, s.config.PostKey, s.MustGetLoginUser(ctx).Id, cover)
+			s.GetStorage(ctx).UpdateArticle(intId, title, summary, html, content, intArticleType, shareDeadlineTimePtr, categoryId, s.config.PostKey, s.MustGetLoginUser(ctx).Id, cover)
 		}
 		ctx.Success(intId)
 	}
@@ -286,20 +304,28 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		article := s.GetStorage(ctx).GetArticle(id, s.config.PostKey)
 		if article == nil {
-			ctx.ShowErrorPage(http.StatusNotFound, "page not found")
+			s.showErrorPage(ctx, http.StatusNotFound, "404 THE ARTICLE DOES NOT EXIST")
 			return
 		}
 		model := ArticleModel{Article: article, Readonly: true}
 		if !auth.HasLoggedIn(s.rac, ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify) {
-			if article.ArticleType != 1 {
-				http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN, 302)
+			if article.ArticleType == 1 {
+				//public article, do nothing
+			} else if article.ArticleType == 5 {
+				//shared article, check deadline
+				if !article.ShareDeadlineTime.After(time.Now().UTC()) {
+					s.showErrorPage(ctx, http.StatusForbidden, "THE LINK IS NO LONGER VALID")
+					return
+				}
+			} else {
+				s.showErrorPage(ctx, http.StatusForbidden, "CAN NOT ACCESS THIS SORT OF ARTICLE")
 				return
 			}
 		} else {
 			loginUserId := s.MustGetLoginUser(ctx).Id
 			if article.ArticleType != 1 {
 				if article.UserId != loginUserId {
-					ctx.ShowErrorPage(http.StatusUnauthorized, "")
+					s.showErrorPage(ctx,http.StatusUnauthorized, "NO PERMISSION")
 					return
 				}
 			}
@@ -338,7 +364,7 @@ func (s *GoBlogServer) ArticleLockPost() goweb.HandlerFunc {
 		intId, _ := strconv.Atoi(id)
 		article := s.GetStorage(ctx).GetArticle(intId, s.config.PostKey)
 		if article.UserId != s.MustGetLoginUser(ctx).Id {
-			ctx.ShowErrorPage(http.StatusUnauthorized, "")
+			s.showErrorPage(ctx, http.StatusUnauthorized, "NO PERMISSION")
 			return
 		}
 		if !common.Md5Check(*s.GetStorage(ctx).GetUser(article.UserId).Level2pwd, pwd) {

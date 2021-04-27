@@ -44,20 +44,24 @@ func (m *SQLManager) Rollback() {
 }
 
 func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
-	r := m.Tx.QueryRow("select id,title,summary,html,content,insert_time,type,category_id,user_id,cover from article where id=$1 and is_deleted=false and is_banned=false", id)
+	r := m.Tx.QueryRow("select id,title,summary,html,content,insert_time,type,share_deadline_time,category_id,user_id,cover from article where id=$1 and is_deleted=false and is_banned=false", id)
 	var (
-		title       string
-		summary     string
-		html        string
-		content     string
-		insertTime  time.Time
-		articleType int
-		categoryId  int
-		userId      int
-		cover       *string
+		title             string
+		summary           string
+		html              string
+		content           string
+		insertTime        time.Time
+		articleType       int
+		categoryId        int
+		shareDeadlineTime *time.Time
+		userId            int
+		cover             *string
 	)
-	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &categoryId, &userId, &cover)
+	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &shareDeadlineTime, &categoryId, &userId, &cover)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		panic(err)
 	}
 	title, err = aesencryption.Decrypt([]byte(key), title)
@@ -76,7 +80,7 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 	if err != nil {
 		panic(err)
 	}
-	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, CategoryId: categoryId, UserId: userId, Cover: cover}
+	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryName string, secret_key string) []models.ArticleDto {
 	var typeWhere string
@@ -154,7 +158,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 	return articles
 }
 
-func (m *SQLManager) NewArticle(title string, summary string, html string, content string, userId int, articleType int, categoryId int, key string, cover *string, backup_article_id *int, insert_time, update_time *time.Time, remark string) int {
+func (m *SQLManager) NewArticle(title string, summary string, html string, content string, userId int, articleType int, shareDeadlineTime *time.Time, categoryId int, key string, cover *string, backup_article_id *int, insert_time, update_time *time.Time, remark string) int {
 	summary = common.StringLimitLen(summary, 200)
 	title = aesencryption.Encrypt([]byte(key), title)
 	content = aesencryption.Encrypt([]byte(key), content)
@@ -167,14 +171,14 @@ func (m *SQLManager) NewArticle(title string, summary string, html string, conte
 		}
 	}
 	r := m.Tx.MustQueryRow(`INSERT INTO public.article(
-		category_id, content, html, insert_time,update_time, is_banned, is_deleted, title, type,user_id, cover, summary,backup_article_id,remark)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id;`,
-		categoryId, content, html, insert_time, update_time, false, false, title, articleType, userId, cover, summary, backup_article_id, remark)
+		category_id, content, html, insert_time,update_time, is_banned, is_deleted, title, type,share_deadline_time,user_id, cover, summary,backup_article_id,remark)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id;`,
+		categoryId, content, html, insert_time, update_time, false, false, title, articleType, shareDeadlineTime, userId, cover, summary, backup_article_id, remark)
 	id := 0
 	r.MustScan(&id)
 	return id
 }
-func (m *SQLManager) UpdateArticle(id int, title string, summary string, html string, content string, articleType int, categoryId, key string, userId int, cover *string) {
+func (m *SQLManager) UpdateArticle(id int, title string, summary string, html string, content string, articleType int, shareDeadlineTime *time.Time, categoryId, key string, userId int, cover *string) {
 	summary = common.StringLimitLen(summary, 200)
 	title = aesencryption.Encrypt([]byte(key), title)
 	content = aesencryption.Encrypt([]byte(key), content)
@@ -186,15 +190,15 @@ func (m *SQLManager) UpdateArticle(id int, title string, summary string, html st
 		if user.Level2pwd == nil {
 			panic("您未设置二级密码")
 		}
-	} else if articleType != 1 && articleType != 2 {
+	} else if articleType != 1 && articleType != 2 && articleType != 5 {
 		panic(fmt.Sprintf("articleType %d is invalid", articleType))
 	}
 	//backup
 	now := time.Now().UTC()
-	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.CategoryId, key, article.Cover, &id, &now, nil, "backup article")
+	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.ShareDeadlineTime, article.CategoryId, key, article.Cover, &id, &now, nil, "backup article")
 	m.Tx.MustExec(`UPDATE public.article
-	SET category_id=$1, content=$2, html=$3, title=$4, type=$5, update_time=$6, cover=$7, summary=$8
-	WHERE id=$9;`, categoryId, content, html, title, articleType, time.Now().UTC(), cover, summary, id)
+	SET category_id=$1, content=$2, html=$3, title=$4, type=$5,share_deadline_time=$6, update_time=$7, cover=$8, summary=$9
+	WHERE id=$10;`, categoryId, content, html, title, articleType, shareDeadlineTime, time.Now().UTC(), cover, summary, id)
 }
 
 func (m *SQLManager) GetUser(userId int) *models.UserDto {
