@@ -98,13 +98,13 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 	}
 	var rows *sql.Rows
 	if categoryName == "" {
-		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id where title like $1 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and is_banned=false order by a.insert_time desc", "%"+key+"%")
+		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
 		if err != nil {
 			panic(err)
 		}
 		rows = r
 	} else {
-		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id where b.name=$1 and title like $2 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and is_banned=false order by  a.insert_time desc", categoryName, "%"+key+"%")
+		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where b.name=$1 and title like $2 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and a.is_banned=false order by  a.insert_time desc", categoryName, "%"+key+"%")
 		if err != nil {
 			panic(err)
 		}
@@ -123,11 +123,12 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 			insertTime   time.Time
 			categoryId   int
 			userId       int
+			userName     string
 			articleType  int
 			categoryName string
 			cover        *string
 		)
-		err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &articleType, &categoryName, &cover)
+		err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &userName, &articleType, &categoryName, &cover)
 		if err != nil {
 			panic(err)
 		}
@@ -153,7 +154,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 			content = ""
 		}
 
-		articles = append(articles, models.ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ArticleType: articleType, CategoryName: categoryName, Cover: cover})
+		articles = append(articles, models.ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, UserName: userName, ArticleType: articleType, CategoryName: categoryName, Cover: cover})
 	}
 	return articles
 }

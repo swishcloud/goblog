@@ -19,6 +19,7 @@ type ArticleDto struct {
 	ShareDeadlineTime *time.Time
 	CategoryId        int
 	UserId            int
+	UserName          string
 	CategoryName      string
 	Cover             *string
 }

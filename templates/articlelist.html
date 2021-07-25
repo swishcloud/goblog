@@ -1,103 +1,109 @@
 {{define "left"}}
-    <style>
-        .post {
-            background-color: white;
-            margin-bottom: 20px;
-            padding: 15px;
-        }
+<style>
+    .post {
+        background-color: white;
+        margin-bottom: 20px;
+        padding: 15px;
+    }
 
-        .post .pic img {
-            width: 100%;
-            height: 100%;
-        }
+    .post .pic img {
+        width: 100%;
+        height: 100%;
+    }
 
+    .post .pic {
+        float: left;
+        width: 220px;
+        display: block;
+        overflow: hidden;
+    }
+
+    .post .summary {
+        line-height: 20px;
+        max-height: 60px;
+        overflow: hidden;
+        margin-bottom: 15px;
+    }
+
+    @media (min-width: 1200px) {
         .post .pic {
-            float: left;
-            width: 220px;
-            display: block;
-            overflow: hidden;
+            margin-right: 15px;
+            height: 130px;
         }
+    }
 
-        .post .summary {
-            line-height: 20px;
-            max-height: 60px;
-            overflow: hidden;
+    @media (max-width: 1199px) {
+        .post .pic {
+            width: 100%;
+            max-height: 200px;
+            float: none;
             margin-bottom: 15px;
         }
+    }
 
-        @media (min-width: 1200px) {
-            .post .pic {
-                margin-right: 15px;
-                height: 130px;
-            }
-        }
+    .sidebar-component {
+        background-color: white;
+        padding: 15px;
+    }
 
-        @media (max-width: 1199px) {
-            .post .pic {
-                width: 100%;
-                max-height: 200px;
-                float: none;
-                margin-bottom: 15px;
-            }
-        }
+    .sidebar-component ul li {
+        float: left;
+        margin-right: 15px;
+    }
 
-        .sidebar-component {
-            background-color: white;
-            padding: 15px;
-        }
+    .sidebar-component h5:after {
+        content: "";
+        background-color: black;
+        width: 50px;
+        height: 2px;
+        display: block;
+        margin-top: 10px;
+        transition: 0.5s;
+    }
 
-        .sidebar-component ul li {
-            float: left;
-            margin-right: 15px;
-        }
+    .sidebar-component:hover ::after {
+        width: 70px;
+    }
 
-        .sidebar-component h5:after {
-            content: "";
-            background-color: black;
-            width: 50px;
-            height: 2px;
-            display: block;
-            margin-top: 10px;
-            transition: 0.5s;
-        }
-
-        .sidebar-component:hover ::after {
-            width: 70px;
-        }
-    </style>
-    {{range .Articles}}
-        <div class="post clearfix">
-            <h3>
-                <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">{{.Title}}</a>
-            </h3>
-            {{if .Cover}}
-                <a class="pic clearfix" href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">
-                    <img class="zoom" src="{{.Cover}}">
-                </a>
-            {{end }}
-            <p class="summary">{{.Summary}}</p>
-            <span>{{formatTime .InsertTime ""}}</span>
-        </div>
-    {{end}}
+    .post a {
+        color: black;
+        text-decoration: none;
+    }
+</style>
+{{range .Articles}}
+<div class="post clearfix">
+    <h3>
+        <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">{{.Title}}</a>
+    </h3>
+    {{if .Cover}}
+    <a class="pic clearfix" href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">
+        <img class="zoom" src="{{.Cover}}">
+    </a>
+    {{end }}
+    <p class="summary">{{.Summary}}</p>
+    <span>{{formatTime .InsertTime ""}}</span>
+    <span>{{.UserName}}</span>
+</div>
+{{end}}
 {{end}}
 {{define "right"}}
-    {{if false}}
-        <div class="sidebar-component clearfix">
-            <h5>友情链接</h5>
-            <div>
-                <ul>
-                    <li><a href="#">A个人博客</a></li>
-                    <li><a href="#">ABC个人博客</a></li>
-                    <li><a href="#">A个人博客</a></li>
-                    <li><a href="#">ABC个人博客</a></li>
-                    <li><a href="#">A个人博客</a></li>
-                    <li><a href="#">ABC个人博客</a></li>
-                    <li><a href="#">A个人博客</a></li>
-                    <li><a href="#">ABC个人博客</a></li>
-                </ul>
-            </div>
-        </div>
-    {{end}}
+{{if false}}
+<div class="sidebar-component clearfix">
+    <h5>友情链接</h5>
+    <div>
+        <ul>
+            <li><a href="#">A个人博客</a></li>
+            <li><a href="#">ABC个人博客</a></li>
+            <li><a href="#">A个人博客</a></li>
+            <li><a href="#">ABC个人博客</a></li>
+            <li><a href="#">A个人博客</a></li>
+            <li><a href="#">ABC个人博客</a></li>
+            <li><a href="#">A个人博客</a></li>
+            <li><a href="#">ABC个人博客</a></li>
+        </ul>
+    </div>
+</div>
+{{end}}
 {{end}}
 {{define "script"}}
 {{end}}
