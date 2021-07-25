@@ -253,11 +253,15 @@ func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 		m.(storage.Storage).Commit()
 	}
 	if ctx.Err != nil {
-		data := struct {
-			Desc string
-		}{Desc: ctx.Err.Error()}
-		model := hw.s.NewPageModel(ctx, "ERROR", data)
-		ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
+		if ctx.Request.Method == http.MethodPost {
+			ctx.Failed(ctx.Err.Error())
+		} else {
+			data := struct {
+				Desc string
+			}{Desc: ctx.Err.Error()}
+			model := hw.s.NewPageModel(ctx, "ERROR", data)
+			ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
+		}
 	}
 }
 

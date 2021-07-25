@@ -242,7 +242,7 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 		articleType := ctx.Request.PostForm.Get("type")
 		shareDeadlineTime := ctx.Request.PostForm.Get("shareDeadlineTime") + ":00Z"
 		var shareDeadlineTimePtr *time.Time
-		if shareDeadlineTime != "" {
+		if articleType == "5" {
 			tmp, err := time.Parse(time.RFC3339, shareDeadlineTime)
 			if err != nil {
 				panic(err)
@@ -325,7 +325,7 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 			loginUserId := s.MustGetLoginUser(ctx).Id
 			if article.ArticleType != 1 {
 				if article.UserId != loginUserId {
-					s.showErrorPage(ctx,http.StatusUnauthorized, "NO PERMISSION")
+					s.showErrorPage(ctx, http.StatusUnauthorized, "NO PERMISSION")
 					return
 				}
 			}
