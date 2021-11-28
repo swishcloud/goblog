@@ -19,5 +19,6 @@
   "JWKJsonUrl": "https://id.swish-cloud.com/.well-known/jwks.json",
   "IntrospectTokenURL": "https://id.swish-cloud.com/api/introspect-token",
   "Tls_cert_file": ".cache/localhost.crt",
-  "Tls_key_file": ".cache/localhost.key"
+  "Tls_key_file": ".cache/localhost.key",
+  "Log_file": ".cache/log.txt"
 }

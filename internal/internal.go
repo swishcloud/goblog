@@ -1,6 +1,10 @@
 package internal
 
-import "github.com/swishcloud/gostudy/logger"
+import (
+	"log"
+
+	"github.com/swishcloud/gostudy/logger"
+)
 
 const (
 	TimeLayout1             = "2006-01-02 15:04"
@@ -8,5 +12,5 @@ const (
 	TimeLayoutMysqlDateTime = "2006-01-02 15:04:05"
 )
 
-var LoggerWriter = logger.NewFileConcurrentWriter("LOG.txt")
-var Logger = logger.NewLogger(LoggerWriter, "GOBLOG")
+var Logger *log.Logger
+var LoggerWriter *logger.FileConcurrentWriter

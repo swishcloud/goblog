@@ -55,6 +55,8 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s.engine = goweb.Default()
 	s.engine.ConcurrenceNumSem = make(chan int, s.config.ConcurrenceNum)
 	s.engine.WM.HandlerWidget = &HandlerWidget{s: s}
+	internal.LoggerWriter = logger.NewFileConcurrentWriter(s.config.Log_file)
+	internal.Logger = logger.NewLogger(internal.LoggerWriter, "GOBLOG")
 	s.engine.Logger = logger.NewLogger(internal.LoggerWriter, "GOWEB")
 	s.BindHandlers()
 	return s
@@ -160,6 +162,7 @@ type Config struct {
 	OAuthSecret       string
 	Tls_cert_file     string
 	Tls_key_file      string
+	Log_file          string
 
 	//not read from configuration file
 	LastUpdateTime string
