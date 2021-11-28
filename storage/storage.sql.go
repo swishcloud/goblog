@@ -82,11 +82,12 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 	}
 	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
-func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryName string, secret_key string) []models.ArticleDto {
+func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryName string, secret_key string, backup_article_id *int) []models.ArticleDto {
 	var typeWhere string
 	var userIdWhere string
+	var backupArticleIdWhere string
 	if articleType == 0 {
-		typeWhere = ""
+		typeWhere = " and a.type!=4"
 	} else {
 		typeWhere = " and a.type=" + strconv.Itoa(articleType)
 	}
@@ -96,15 +97,22 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryNa
 	} else {
 		userIdWhere = " and a.user_id=" + strconv.Itoa(userId)
 	}
+
+	if backup_article_id == nil {
+		backupArticleIdWhere = " and a.backup_article_id is null"
+	} else {
+		backupArticleIdWhere = " and a.backup_article_id=" + strconv.Itoa(*backup_article_id)
+	}
+
 	var rows *sql.Rows
 	if categoryName == "" {
-		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
+		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+backupArticleIdWhere+" and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
 		if err != nil {
 			panic(err)
 		}
 		rows = r
 	} else {
-		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where b.name=$1 and title like $2 "+typeWhere+userIdWhere+" and type!=4 and a.is_deleted=false and a.is_banned=false order by  a.insert_time desc", categoryName, "%"+key+"%")
+		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where b.name=$1 and title like $2 "+typeWhere+userIdWhere+backupArticleIdWhere+" and a.is_deleted=false and a.is_banned=false order by  a.insert_time desc", categoryName, "%"+key+"%")
 		if err != nil {
 			panic(err)
 		}
@@ -195,8 +203,7 @@ func (m *SQLManager) UpdateArticle(id int, title string, summary string, html st
 		panic(fmt.Sprintf("articleType %d is invalid", articleType))
 	}
 	//backup
-	now := time.Now().UTC()
-	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.ShareDeadlineTime, article.CategoryId, key, article.Cover, &id, &now, nil, "backup article")
+	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.ShareDeadlineTime, article.CategoryId, key, article.Cover, &id, &article.InsertTime, nil, "backup article")
 	m.Tx.MustExec(`UPDATE public.article
 	SET category_id=$1, content=$2, html=$3, title=$4, type=$5,share_deadline_time=$6, update_time=$7, cover=$8, summary=$9
 	WHERE id=$10;`, categoryId, content, html, title, articleType, shareDeadlineTime, time.Now().UTC(), cover, summary, id)

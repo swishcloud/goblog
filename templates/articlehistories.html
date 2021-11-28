@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="container">
+    <table class="table">
+        <tr>
+            <th>title</th>
+            <th>catecory</th>
+            <th>modify-time</th>
+            <th>modify-user</th>
+        </tr>
+        {{range .Articles}}
+        <tr id="{{.Id}}">
+            <td> <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">{{.Title}}</a></td>
+            <td>{{.CategoryName}}</td>
+            <td>{{formatTime .InsertTime ""}}</td>
+            <td>{{.UserName}}</td>
+        </tr>
+        {{end}}
+    </table>
+
+</div>
+{{end}}
+{{define "script"}}
+{{end}}

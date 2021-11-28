@@ -21,11 +21,17 @@
         <h2>{{.Article.Title}}</h2>
         <input type="hidden" id="articleType" value="{{.Article.ArticleType}}">
         <input type="hidden" id="articleId" value="{{.Article.Id}}">
+        {{if eq .Article.ArticleType 4}}
+        <div class="bg-warning">
+            您正在查看的是历史版本
+        </div>
+        {{end}}
         <p>
             <span>发布时间:{{formatTime .Article.InsertTime ""}}</span>
             {{if eq .Readonly false}}
             <a href="/articleedit?id={{.Article.Id}}">编辑</a>
             <a href="javascript:;" id="delete">删除</a>
+            <a href="/articlehistories?id={{.Article.Id}}">历史版本</a>
             {{end}}
         </p>
     </div>

@@ -37,6 +37,7 @@ const (
 	PATH_ARTICLESAVE             = "/articlesave"
 	PATH_ARTICLEDELETE           = "/articledelete"
 	PATH_ARTICLELOCK             = "/articlelock"
+	PATH_ARTICLEHISTORIES        = "/articlehistories"
 	PATH_LOGIN                   = "/login"
 	PATH_LOGIN_CALLBACK          = "/login-callback"
 	PATH_LOGOUT                  = "/logout"
@@ -74,6 +75,7 @@ func (s *GoBlogServer) BindHandlers() {
 	auth.POST(PATH_ARTICLEDELETE, s.ArticleDelete())
 	auth.GET(PATH_ARTICLELOCK, s.ArticleLock())
 	auth.POST(PATH_ARTICLELOCK, s.ArticleLockPost())
+	auth.GET(PATH_ARTICLEHISTORIES, s.ArticleHistories())
 	group.GET(PATH_LOGIN, s.Login())
 	group.GET(PATH_LOGIN_CALLBACK, s.LoginCallback())
 	group.POST(PATH_LOGOUT, s.LogoutPost())
@@ -169,10 +171,27 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		} else {
 			queryArticleType = 1
 		}
-		articles := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", category, s.config.PostKey)
+		articles := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", category, s.config.PostKey, nil)
 		categories := s.GetStorage(ctx).GetCategories(user.Id, queryArticleType)
 		model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
 		ctx.RenderPage(s.NewPageModel(ctx, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
+	}
+}
+func (s *GoBlogServer) ArticleHistories() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		id, err := strconv.Atoi(ctx.Request.URL.Query().Get("id"))
+		if err != nil {
+			panic(err)
+		}
+		user := s.MustGetLoginUser(ctx)
+		articles := s.GetStorage(ctx).GetArticles(4, user.Id, "", "", s.config.PostKey, &id)
+		data := struct {
+			Articles []models.ArticleDto
+		}{
+			Articles: articles,
+		}
+		model := s.NewPageModel(ctx, "HISTORY", data)
+		ctx.RenderPage(model, "templates/layout.html", "templates/userLayout.html", "templates/articlehistories.html")
 	}
 }
 
@@ -192,7 +211,7 @@ func (s *GoBlogServer) ArticleList() goweb.HandlerFunc {
 		} else {
 			key = ""
 		}
-		articles := s.GetStorage(ctx).GetArticles(1, 0, key, "", s.config.PostKey)
+		articles := s.GetStorage(ctx).GetArticles(1, 0, key, "", s.config.PostKey, nil)
 		ctx.RenderPage(s.NewPageModel(ctx, s.config.WebsiteName, struct {
 			Key      string
 			Articles []models.ArticleDto
@@ -224,6 +243,9 @@ func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 				if article.ArticleType == 3 {
 					http.Redirect(ctx.Writer, ctx.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=1", 302)
 					return
+				}
+				if article.ArticleType == 4 {
+					panic("YOU CAN NOT EDIT A BACKUP KIND OF ARTICLE")
 				}
 				model.Article = *article
 			}
@@ -300,6 +322,7 @@ type ArticleModel struct {
 
 func (s *GoBlogServer) Article() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
+		user := s.MustGetLoginUser(ctx)
 		re := regexp.MustCompile(`\d+$`)
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		article := s.GetStorage(ctx).GetArticle(id, s.config.PostKey)
@@ -315,6 +338,12 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 				//shared article, check deadline
 				if !article.ShareDeadlineTime.After(time.Now().UTC()) {
 					s.showErrorPage(ctx, http.StatusForbidden, "THE LINK IS NO LONGER VALID")
+					return
+				}
+			} else if article.ArticleType == 4 {
+				//article backup, check user permissions
+				if user.Id != article.UserId {
+					s.showErrorPage(ctx, http.StatusForbidden, "c")
 					return
 				}
 			} else {
@@ -333,9 +362,10 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 				http.Redirect(ctx.Writer, ctx.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=2", 302)
 				return
 			}
-			if article.UserId == loginUserId {
+			if article.UserId == loginUserId && article.ArticleType != 4 {
 				model.Readonly = false
 			}
+
 		}
 		model.Html = template.HTML(model.Article.Html)
 		ctx.RenderPage(s.NewPageModel(ctx, article.Title, model), "templates/layout.html", "templates/article.html")
