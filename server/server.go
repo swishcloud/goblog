@@ -82,7 +82,7 @@ func (s *GoBlogServer) periodicTask() {
 }
 func (s *GoBlogServer) updateHomeWallpaper() (err error) {
 	defer func() {
-		if tmp := recover(); err != nil {
+		if tmp := recover(); tmp != nil {
 			err = errors.New(fmt.Sprint(tmp))
 		}
 	}()
