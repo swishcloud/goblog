@@ -325,7 +325,6 @@ type ArticleModel struct {
 
 func (s *GoBlogServer) Article() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		user := s.MustGetLoginUser(ctx)
 		re := regexp.MustCompile(`\d+$`)
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		article := s.GetStorage(ctx).GetArticle(id, s.config.PostKey)
@@ -341,12 +340,6 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 				//shared article, check deadline
 				if !article.ShareDeadlineTime.After(time.Now().UTC()) {
 					s.showErrorPage(ctx, http.StatusForbidden, "THE LINK IS NO LONGER VALID")
-					return
-				}
-			} else if article.ArticleType == 4 {
-				//article backup, check user permissions
-				if user.Id != article.UserId {
-					s.showErrorPage(ctx, http.StatusForbidden, "c")
 					return
 				}
 			} else {
