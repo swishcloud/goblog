@@ -82,42 +82,38 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 	}
 	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
-func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryName string, secret_key string, backup_article_id *int) []models.ArticleDto {
+func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId *int, secret_key string, backup_article_id *int) []models.ArticleDto {
 	var typeWhere string
 	var userIdWhere string
 	var backupArticleIdWhere string
+	var categoryWhere string
 	if articleType == 0 {
 		typeWhere = " and a.type!=4"
 	} else {
 		typeWhere = " and a.type=" + strconv.Itoa(articleType)
 	}
-
 	if userId == 0 {
-		userIdWhere = ""
+		userIdWhere = " "
 	} else {
 		userIdWhere = " and a.user_id=" + strconv.Itoa(userId)
 	}
-
 	if backup_article_id == nil {
 		backupArticleIdWhere = " and a.backup_article_id is null"
 	} else {
 		backupArticleIdWhere = " and a.backup_article_id=" + strconv.Itoa(*backup_article_id)
 	}
+	if categoryId == nil {
+		categoryWhere = ""
+	} else {
+		categoryWhere = " and b.id=" + strconv.Itoa(*categoryId)
+	}
 
 	var rows *sql.Rows
-	if categoryName == "" {
-		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+backupArticleIdWhere+" and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
-		if err != nil {
-			panic(err)
-		}
-		rows = r
-	} else {
-		r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where b.name=$1 and title like $2 "+typeWhere+userIdWhere+backupArticleIdWhere+" and a.is_deleted=false and a.is_banned=false order by  a.insert_time desc", categoryName, "%"+key+"%")
-		if err != nil {
-			panic(err)
-		}
-		rows = r
+	r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+backupArticleIdWhere+categoryWhere+" and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
+	if err != nil {
+		panic(err)
 	}
+	rows = r
 	defer rows.Close()
 
 	var articles = []models.ArticleDto{}
@@ -249,10 +245,10 @@ func (m *SQLManager) GetCategories(userId int, t int) []models.CategoryDto {
 	parameters := []interface{}{}
 	parameters = append(parameters, userId)
 	if t == 1 {
-		where = "where id in( select a.id from category as a join article as b on a.id=b.category_id  where b.type=1 and a.is_deleted=false and a.user_id=$1 order by name group by a.id ) "
+		where = "where id in( select a.id from category as a join article as b on a.id=b.category_id  where b.type=1 and a.is_deleted=false and a.user_id=$1 group by a.id ) order by id"
 
 	} else {
-		where = "where is_deleted=false and user_id=$1 order by name"
+		where = "where is_deleted=false and user_id=$1 order by id"
 
 	}
 	return m.scanCategories(where, parameters...)

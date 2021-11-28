@@ -133,8 +133,8 @@ type UserArticleModel struct {
 	UserId     int
 }
 
-func (m UserArticleModel) GetCategoryUrl(name string) string {
-	return fmt.Sprintf("/user/%d/article?category=%s", m.UserId, name)
+func (m UserArticleModel) GetCategoryUrl(id int) string {
+	return fmt.Sprintf("/user/%d/article?category=%d", m.UserId, id)
 }
 
 func (s *GoBlogServer) GetLoginUser(ctx *goweb.Context) (*models.UserDto, error) {
@@ -157,21 +157,24 @@ func (s *GoBlogServer) MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
 }
 func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		category := ctx.Request.URL.Query().Get("category")
+		loginUser := s.MustGetLoginUser(ctx)
+		category, err := strconv.Atoi(ctx.Request.URL.Query().Get("category"))
+		var categoryId *int
+		if err != nil {
+			categoryId = &s.GetStorage(ctx).GetCategories(loginUser.Id, 0)[0].Id
+		} else {
+			categoryId = &category
+		}
 		re := regexp.MustCompile(`\d+`)
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		user := s.GetStorage(ctx).GetUser(id)
-		loginUser, err := s.GetLoginUser(ctx)
-		if err != nil {
-			http.Redirect(ctx.Writer, ctx.Request, PATH_LOGIN, 302)
-		}
 		var queryArticleType int
 		if loginUser.Id == user.Id {
 			queryArticleType = 0
 		} else {
 			queryArticleType = 1
 		}
-		articles := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", category, s.config.PostKey, nil)
+		articles := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", categoryId, s.config.PostKey, nil)
 		categories := s.GetStorage(ctx).GetCategories(user.Id, queryArticleType)
 		model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
 		ctx.RenderPage(s.NewPageModel(ctx, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
@@ -184,7 +187,7 @@ func (s *GoBlogServer) ArticleHistories() goweb.HandlerFunc {
 			panic(err)
 		}
 		user := s.MustGetLoginUser(ctx)
-		articles := s.GetStorage(ctx).GetArticles(4, user.Id, "", "", s.config.PostKey, &id)
+		articles := s.GetStorage(ctx).GetArticles(4, user.Id, "", nil, s.config.PostKey, &id)
 		data := struct {
 			Articles []models.ArticleDto
 		}{
@@ -204,14 +207,14 @@ type ArticleListItemModel struct {
 
 func (s *GoBlogServer) ArticleList() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		keys, _ := ctx.Request.URL.Query()["key"]
+		keys := ctx.Request.URL.Query()["key"]
 		var key string
 		if len(keys) > 0 {
 			key = keys[0]
 		} else {
 			key = ""
 		}
-		articles := s.GetStorage(ctx).GetArticles(1, 0, key, "", s.config.PostKey, nil)
+		articles := s.GetStorage(ctx).GetArticles(1, 0, key, nil, s.config.PostKey, nil)
 		ctx.RenderPage(s.NewPageModel(ctx, s.config.WebsiteName, struct {
 			Key      string
 			Articles []models.ArticleDto
