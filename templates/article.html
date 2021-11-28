@@ -19,6 +19,8 @@
 <div class="container">
     <div class="article-header text-center">
         <h2>{{.Article.Title}}</h2>
+        <input type="hidden" id="articleType" value="{{.Article.ArticleType}}">
+        <input type="hidden" id="articleId" value="{{.Article.Id}}">
         <p>
             <span>发布时间:{{formatTime .Article.InsertTime ""}}</span>
             {{if eq .Readonly false}}
@@ -32,7 +34,7 @@
 {{end}}
 {{define "script"}}
 <script>
-    var id = {{.Article.Id }}
+    var id = $("#articleId").val()
     $("#delete").click(function () {
         if (confirm("确定要删除吗?")) {
             $.post("/articledelete", { id: id }, function (res) {
@@ -46,10 +48,10 @@
         }
     })
     $(".article-content a").attr("target", "_blank")
-    { { if eq.Article.ArticleType 3 } }
-    setTimeout(function () {
-        location.replace("/articlelock?id={{.Article.Id}}&t=2")
-    }, 1000 * 60)
-    { { end } }
+    if ($("#articleType").val() == 3) {
+        setTimeout(function () {
+            location.replace("/articlelock?id={{.Article.Id}}&t=2")
+        }, 1000 * 60)
+    }
 </script>
 {{end}}
