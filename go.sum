@@ -283,6 +283,8 @@ github.com/swishcloud/gostudy v0.0.0-20201010013643-0beb4e4184f3 h1:v/LETpONQAvt
 github.com/swishcloud/gostudy v0.0.0-20201010013643-0beb4e4184f3/go.mod h1:vo5+bdSqcRelUKQhw73YcxB54S35CkxgHMv2rfGGg/U=
 github.com/swishcloud/gostudy v0.0.0-20210425093220-d43a5c8312ae h1:6wP+ZzbckSQpD3ZWUnkfiQHnNzpcwNO0vlpKNlcdD+0=
 github.com/swishcloud/gostudy v0.0.0-20210425093220-d43a5c8312ae/go.mod h1:vo5+bdSqcRelUKQhw73YcxB54S35CkxgHMv2rfGGg/U=
+github.com/swishcloud/gostudy v0.0.0-20211128053808-b20df7a9d6d9 h1:elqRh1OvanD708EqUSsaU/gGCxnZZGJQHrlMR4ebdNw=
+github.com/swishcloud/gostudy v0.0.0-20211128053808-b20df7a9d6d9/go.mod h1:vo5+bdSqcRelUKQhw73YcxB54S35CkxgHMv2rfGGg/U=
 github.com/swishcloud/goweb v0.0.0-20201207010223-569b91f90560 h1:PWKc7CqCtyH2GUH5j+Q6tHe4CM0lAgjmFp8y0SOR6ak=
 github.com/swishcloud/goweb v0.0.0-20201207010223-569b91f90560/go.mod h1:Uqe1A6MKsXqCMF76Hg4UtnX583dselWEsYjkkv9C/Y4=
 github.com/swishcloud/goweb v0.0.0-20210425093540-9519a008a25e h1:igBl8KtpBaMWyVX3FP/9vFwGY4Rl0SC95/HNHOoBsZ0=

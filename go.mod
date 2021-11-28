@@ -21,7 +21,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/spf13/cobra v1.1.3
-	github.com/swishcloud/gostudy v0.0.0-20210425093220-d43a5c8312ae
+	github.com/swishcloud/gostudy v0.0.0-20211128053808-b20df7a9d6d9
 	github.com/swishcloud/goweb v0.0.0-20210425093540-9519a008a25e
 	github.com/swishcloud/identity-provider v0.0.0-20201224015539-19d534ef56f2
 	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78
