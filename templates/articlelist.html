@@ -73,10 +73,10 @@
 {{range .Articles}}
 <div class="post clearfix">
     <h3>
-        <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">{{.Title}}</a>
+        <a href="{{article_url .UserId .Id}}" target="_blank">{{.Title}}</a>
     </h3>
     {{if .Cover}}
-    <a class="pic clearfix" href="/u/{{.UserId}}/post/{{.Id}}" target="_blank">
+    <a class="pic clearfix" href="{{article_url .UserId .Id}}" target="_blank">
         <img class="zoom" src="{{.Cover}}">
     </a>
     {{end }}

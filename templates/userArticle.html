@@ -7,6 +7,8 @@
 </style>
 <div class="col-lg-9">
     <div class="search-area mb-2" style="display: flex;">
+        {{if .LoggedUser}}
+        {{if eq .LoggedUser.Id .UserId}}
         <select class="custom-select col-md-2 mr-2" id="articleType">
             <option selected value="0">ALL</option>
             <option value="1">PUBLIC</option>
@@ -14,6 +16,8 @@
             <option value="3">SHARED</option>
             <option value="4">LOCKED</option>
         </select>
+        {{end}}
+        {{end}}
         <input class="form-control mr-2" id="searchKey">
         <button type="button" class="btn btn-light" id="search">
             <i class="bi bi-search"></i>

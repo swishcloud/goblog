@@ -131,6 +131,7 @@ type UserArticleModel struct {
 	Articles   []models.ArticleDto
 	Categories []models.CategoryDto
 	UserId     int
+	LoggedUser *models.UserDto
 }
 
 func (m UserArticleModel) GetCategoryUrl(id int) string {
@@ -158,7 +159,7 @@ func (s *GoBlogServer) MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
 func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		key := ctx.Request.Form.Get("key")
-		loginUser := s.MustGetLoginUser(ctx)
+		loginUser, _ := s.GetLoginUser(ctx)
 		category, err := strconv.Atoi(ctx.Request.URL.Query().Get("category"))
 		var categoryId *int
 		if err != nil || category == -1 {
@@ -171,7 +172,7 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		user := s.GetStorage(ctx).GetUser(id)
 		var queryArticleType int
-		if loginUser.Id == user.Id {
+		if loginUser != nil && loginUser.Id == user.Id {
 			t, err := strconv.Atoi(ctx.Request.Form.Get("type"))
 			if err != nil {
 				queryArticleType = 0
@@ -204,7 +205,7 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		}
 		categories := []models.CategoryDto{{Id: -1, Name: "全部分类"}}
 		categories = append(categories, s.GetStorage(ctx).GetCategories(user.Id, queryArticleType)...)
-		model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
+		model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id, LoggedUser: loginUser}
 		ctx.RenderPage(s.NewPageModel(ctx, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
 	}
 }
@@ -243,6 +244,9 @@ func (s *GoBlogServer) ArticleList() goweb.HandlerFunc {
 			key = ""
 		}
 		articles := s.GetStorage(ctx).GetArticles(1, 0, key, nil, s.config.PostKey, nil)
+		ctx.FuncMap["article_url"] = func(userid int, articleid int) (string, error) {
+			return "https://" + s.config.Website_domain + "/u/" + strconv.Itoa(userid) + "/post/" + strconv.Itoa(articleid), nil
+		}
 		ctx.RenderPage(s.NewPageModel(ctx, s.config.WebsiteName, struct {
 			Key      string
 			Articles []models.ArticleDto
