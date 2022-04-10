@@ -6,6 +6,19 @@
     }
 </style>
 <div class="col-lg-9">
+    <div class="search-area mb-2" style="display: flex;">
+        <select class="custom-select col-md-2 mr-2" id="articleType">
+            <option selected value="0">ALL</option>
+            <option value="1">PUBLIC</option>
+            <option value="2">PRIVATE</option>
+            <option value="3">SHARED</option>
+            <option value="4">LOCKED</option>
+        </select>
+        <input class="form-control mr-2" id="searchKey">
+        <button type="button" class="btn btn-light" id="search">
+            <i class="bi bi-search"></i>
+        </button>
+    </div>
     {{range .Articles}}
     <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank" class="list-group-item list-group-item-action">
         <div class="d-flex w-100 justify-content-between">
@@ -26,4 +39,37 @@
 </div>
 {{end}}
 {{define "script"}}
+<script>
+    $("#search").on("click", function () {
+        const paramsString = location.search;
+        let searchParams = new URLSearchParams(paramsString);
+        searchParams.delete("key")
+        searchParams.append("key", $("#searchKey").val())
+        searchParams.delete("type")
+        searchParams.append("type", $("#articleType").val())
+        console.log(searchParams.toString())
+        location.href = location.pathname + "?" + searchParams.toString()
+    })
+
+    const paramsString = location.search;
+    let searchParams = new URLSearchParams(paramsString);
+    let key = searchParams.get("key")
+    $("#searchKey").val(key)
+    let type = searchParams.get("type")
+    if (!type) {
+        $("#articleType").val(0)
+    } else {
+        $("#articleType").val(type)
+    }
+
+    $("#searchKey").on('keyup', function (e) {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            $("#search").click()
+        }
+    });
+
+    $("#articleType").on("change", function () {
+        $("#search").click()
+    })
+</script>
 {{end}}

@@ -157,25 +157,53 @@ func (s *GoBlogServer) MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
 }
 func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
+		key := ctx.Request.Form.Get("key")
 		loginUser := s.MustGetLoginUser(ctx)
 		category, err := strconv.Atoi(ctx.Request.URL.Query().Get("category"))
 		var categoryId *int
-		if err != nil {
-			categoryId = &s.GetStorage(ctx).GetCategories(loginUser.Id, 0)[0].Id
+		if err != nil || category == -1 {
+			//categoryId = &s.GetStorage(ctx).GetCategories(loginUser.Id, 0)[0].Id
 		} else {
 			categoryId = &category
 		}
+
 		re := regexp.MustCompile(`\d+`)
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
 		user := s.GetStorage(ctx).GetUser(id)
 		var queryArticleType int
 		if loginUser.Id == user.Id {
-			queryArticleType = 0
+			t, err := strconv.Atoi(ctx.Request.Form.Get("type"))
+			if err != nil {
+				queryArticleType = 0
+			}
+			if t == 0 {
+				queryArticleType = 0
+			} else if t == 1 {
+				queryArticleType = 1
+			} else if t == 2 {
+				queryArticleType = 2
+			} else if t == 3 {
+				queryArticleType = 5
+			} else if t == 4 {
+				queryArticleType = 3
+			} else {
+				panic("parameter error")
+			}
 		} else {
 			queryArticleType = 1
 		}
 		articles := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", categoryId, s.config.PostKey, nil)
-		categories := s.GetStorage(ctx).GetCategories(user.Id, queryArticleType)
+		len := len(articles)
+		for index := 0; index < len; index++ {
+			item := articles[index]
+			if !strings.Contains(item.Title, key) && !strings.Contains(item.Content, key) {
+				articles = append(articles[:index], articles[index+1:]...)
+				index--
+				len--
+			}
+		}
+		categories := []models.CategoryDto{{Id: -1, Name: "全部分类"}}
+		categories = append(categories, s.GetStorage(ctx).GetCategories(user.Id, queryArticleType)...)
 		model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id}
 		ctx.RenderPage(s.NewPageModel(ctx, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
 	}

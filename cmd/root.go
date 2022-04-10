@@ -17,7 +17,12 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	defer func() {
 		if err := recover(); err != nil {
-			internal.Logger.Panic(err)
+			if internal.Logger == nil {
+				panic(err)
+				// the logger is not initialized, therefore unable to log this err
+			} else {
+				internal.Logger.Panic(err)
+			}
 		}
 	}()
 	if err := rootCmd.Execute(); err != nil {
