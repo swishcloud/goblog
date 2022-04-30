@@ -14,16 +14,13 @@ require (
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.2.0
-	github.com/lestrrat/go-jwx v0.0.0-20210302221443-a9d01c1b7121 // indirect
-	github.com/lestrrat/go-pdebug v0.0.0-20180220043741-569c97477ae8 // indirect
 	github.com/lib/pq v1.10.1 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.9 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/spf13/cobra v1.1.3
 	github.com/swishcloud/gostudy v0.0.0-20211128053808-b20df7a9d6d9
-	github.com/swishcloud/goweb v0.0.0-20210425093540-9519a008a25e
+	github.com/swishcloud/goweb v0.0.0-20220430042806-e33af33f75d0
 	github.com/swishcloud/identity-provider v0.0.0-20201224015539-19d534ef56f2
-	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78
+	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
 	gopkg.in/yaml.v2 v2.4.0
 )

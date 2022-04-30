@@ -476,7 +476,7 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 			ctx.Writer.Write([]byte(err.Error()))
 			return
 		}
-		session := auth.Login(ctx, token, s.config.JWKJsonUrl)
+		session := auth.Login(ctx, token, s.config.JWKJsonUrl, nil)
 		id := session.Claims["sub"].(string)
 		name := session.Claims["name"].(string)
 		iss := session.Claims["iss"].(string)
