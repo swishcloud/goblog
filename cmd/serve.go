@@ -5,13 +5,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/swishcloud/goblog/server"
-	"github.com/swishcloud/identity-provider/flagx"
 )
 
 var serveCmd = &cobra.Command{
 	Use: "serve",
 	Run: func(cmd *cobra.Command, args []string) {
-		path := flagx.MustGetString(cmd, "config")
+		path := MustGetString(cmd, "config")
 		skip_tls_verify, err := cmd.Flags().GetBool("skip-tls-verify")
 		if err != nil {
 			log.Fatal(err)

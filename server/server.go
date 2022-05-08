@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/swishcloud/goblog/internal"
@@ -104,6 +105,11 @@ func (s *GoBlogServer) updateHomeWallpaper() (err error) {
 		if err != nil {
 			return err
 		}
+		m := storage.NewSQLManager(s.config.SqlDataSourceName)
+		if m.GetImage(filename) == nil {
+			m.AddImage(nil, 2, filename, nil)
+		}
+		m.Commit()
 		s.FileCache.HomeWallpaper = filename
 		s.FileCache.Save()
 	} else {
@@ -127,6 +133,11 @@ func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
 		ctx.Data["storage"] = m
 	}
 	return m.(storage.Storage)
+}
+
+func (server *GoBlogServer) checkReferer(ctx *goweb.Context) bool {
+	referer := ctx.Request.Header.Get("Referer")
+	return strings.Index(referer, "https://"+server.config.Website_domain) == 0
 }
 
 func (s *GoBlogServer) NewPageModel(ctx *goweb.Context, title string, data interface{}) *PageModel {

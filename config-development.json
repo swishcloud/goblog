@@ -1,7 +1,7 @@
 {
   "FileLocation": ".data",
   "Host": "0.0.0.0:8080",
-  "Website_domain": "localhost:8080",
+  "Website_domain": "192.168.1.1:8080",
   "SqlDataSourceName": "postgres://bigyasuo:PASSWORD@34.96.178.49:5432/goblog_test?sslmode=disable",
   "WebsiteName": "GOBLOG",
   "ConcurrenceNum": 10,

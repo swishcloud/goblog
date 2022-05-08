@@ -118,6 +118,9 @@
         uploadMethod: "post",
         jsonFieldName: "downloadUrl",
         uploadFieldName: "image",
+        extraParams: {
+            article_id: "{{.Article.Id}}"
+        },
         onFileUploadResponse: function (res) {
             console.log(res)
         },

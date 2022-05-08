@@ -1,8 +1,6 @@
 package server
 
 import (
-	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,10 +21,8 @@ import (
 	"github.com/swishcloud/goblog/internal"
 	"github.com/swishcloud/goblog/storage/models"
 	"github.com/swishcloud/gostudy/common"
-	"github.com/swishcloud/gostudy/keygenerator"
 	"github.com/swishcloud/goweb"
 	"github.com/swishcloud/goweb/auth"
-	"golang.org/x/oauth2"
 )
 
 const session_user_key = "session_user"
@@ -67,6 +63,50 @@ func (s *GoBlogServer) BindHandlers() {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
 	})
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
+		re := regexp.MustCompile(`/src/image/([\w-\.]+)`)
+		match := re.FindStringSubmatch(context.Request.URL.Path)
+		if match == nil {
+			s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
+			return
+		} else {
+			image_src := match[1]
+			image := s.GetStorage(context).GetImage(image_src)
+			if image == nil {
+				s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
+				return
+			}
+			image_type, err := strconv.Atoi(image["image_type"].(string))
+			if err != nil {
+				panic(err)
+			}
+			if image_type == 1 {
+				article_id, err := strconv.Atoi(image["related_id"].(string))
+				if err != nil {
+					panic(err)
+				}
+				article := s.GetStorage(context).GetArticle(article_id, s.config.PostKey)
+				if article == nil {
+					s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
+					return
+				}
+				user, _ := s.GetLoginUser(context)
+				if _, err := s.HasArticleReadAccess(user, article); err != nil {
+					s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
+					return
+				}
+			} else if image_type == 2 {
+				is_deleted, err := strconv.ParseBool(image["is_deleted"].(string))
+				if err != nil {
+					panic(err)
+				}
+				if is_deleted {
+					s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
+					return
+				}
+			} else {
+				panic("fatal error")
+			}
+		}
 		http.StripPrefix("/src/", http.FileServer(http.Dir(s.config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 	})
 	group.GET(PATH_ARTICLELIST, s.ArticleList())
@@ -342,6 +382,12 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 		now := time.Now().UTC()
 		if intId == 0 {
 			intId = s.GetStorage(ctx).NewArticle(title, summary, html, content, s.MustGetLoginUser(ctx).Id, intArticleType, shareDeadlineTimePtr, intCategoryId, s.config.PostKey, cover, nil, &now, nil, "New article by user")
+			re := regexp.MustCompile(`!\[image\]\(/src/image/([a-z\d-\.]+)\)`)
+			matches := re.FindAllStringSubmatch(content, -1)
+			for _, match := range matches {
+				image_src := match[1]
+				s.GetStorage(ctx).UpdateImageRelatedId(image_src, strconv.Itoa(intId), s.MustGetLoginUser(ctx).Id)
+			}
 		} else {
 			s.GetStorage(ctx).UpdateArticle(intId, title, summary, html, content, intArticleType, shareDeadlineTimePtr, categoryId, s.config.PostKey, s.MustGetLoginUser(ctx).Id, cover)
 		}
@@ -355,6 +401,22 @@ type ArticleModel struct {
 	Readonly bool
 }
 
+func (s *GoBlogServer) HasArticleReadAccess(user *models.UserDto, article *models.ArticleDto) (bool, error) {
+	if article.ArticleType == 2 || article.ArticleType == 3 || article.ArticleType == 4 {
+		if user == nil || article.UserId != user.Id {
+			return false, errors.New("NO PERMISSION")
+		}
+	} else if article.ArticleType == 5 {
+		if !article.ShareDeadlineTime.After(time.Now().UTC()) {
+			if user == nil || user.Id != article.UserId {
+				return false, errors.New("THE LINK IS NO LONGER VALID")
+			}
+		}
+	} else if article.ArticleType != 1 {
+		return false, errors.New("TYPE ERROR")
+	}
+	return true, nil
+}
 func (s *GoBlogServer) Article() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		re := regexp.MustCompile(`\d+$`)
@@ -365,35 +427,16 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 			return
 		}
 		model := ArticleModel{Article: article, Readonly: true}
-		if !auth.HasLoggedIn(s.rac, ctx, s.config.OAUTH2Config, s.config.IntrospectTokenURL, s.skip_tls_verify) {
-			if article.ArticleType == 1 {
-				//public article, do nothing
-			} else if article.ArticleType == 5 {
-				//shared article, check deadline
-				if !article.ShareDeadlineTime.After(time.Now().UTC()) {
-					s.showErrorPage(ctx, http.StatusForbidden, "THE LINK IS NO LONGER VALID")
-					return
-				}
-			} else {
-				s.showErrorPage(ctx, http.StatusForbidden, "CAN NOT ACCESS THIS SORT OF ARTICLE")
-				return
-			}
-		} else {
-			loginUserId := s.MustGetLoginUser(ctx).Id
-			if article.ArticleType != 1 {
-				if article.UserId != loginUserId {
-					s.showErrorPage(ctx, http.StatusUnauthorized, "NO PERMISSION")
-					return
-				}
-			}
-			if article.ArticleType == 3 {
-				http.Redirect(ctx.Writer, ctx.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=2", 302)
-				return
-			}
-			if article.UserId == loginUserId && article.ArticleType != 4 {
-				model.Readonly = false
-			}
-
+		user, _ := s.GetLoginUser(ctx)
+		if user != nil && user.Id == article.UserId && article.ArticleType == 3 {
+			http.Redirect(ctx.Writer, ctx.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=2", 302)
+			return
+		}
+		if _, err := s.HasArticleReadAccess(user, article); err != nil {
+			panic(err)
+		}
+		if user != nil && user.Id == article.UserId && article.ArticleType != 4 {
+			model.Readonly = false
 		}
 		model.Html = template.HTML(model.Article.Html)
 		ctx.RenderPage(s.NewPageModel(ctx, article.Title, model), "templates/layout.html", "templates/article.html")
@@ -442,39 +485,19 @@ func (s *GoBlogServer) ArticleLockPost() goweb.HandlerFunc {
 
 func (s *GoBlogServer) Login() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		state, err := keygenerator.NewKey(20, false, false, false, false)
+		url, err := auth.AuthCodeURL(ctx, s.config.OAUTH2Config)
 		if err != nil {
 			panic(err)
 		}
-		state = base64.URLEncoding.EncodeToString([]byte(state))
-		cookie := http.Cookie{Name: csrf_state_cookie_name, Value: state, Path: "/"}
-		http.SetCookie(ctx.Writer, &cookie)
-		if err != nil {
-			panic(err)
-		}
-		url := s.config.OAUTH2Config.AuthCodeURL(state, oauth2.AccessTypeOffline)
 		http.Redirect(ctx.Writer, ctx.Request, url, 302)
 	}
 }
 
 func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
-		state := ctx.Request.URL.Query().Get("state")
-		common.DelCookie(ctx.Writer, csrf_state_cookie_name)
-		if cookie, err := ctx.Request.Cookie(csrf_state_cookie_name); err != nil {
-			ctx.Failed("state cookie does not present")
-			return
-		} else {
-			if cookie.Value != state {
-				ctx.Failed("csrf verification failed")
-				return
-			}
-		}
-		code := ctx.Request.URL.Query().Get("code")
-		token, err := s.config.OAUTH2Config.Exchange(context.Background(), code)
+		token, err := auth.Exchange(ctx, s.config.OAUTH2Config, s.httpClient)
 		if err != nil {
-			ctx.Writer.Write([]byte(err.Error()))
-			return
+			panic(err)
 		}
 		session := auth.Login(ctx, token, s.config.JWKJsonUrl, nil)
 		id := session.Claims["sub"].(string)
@@ -623,23 +646,36 @@ func (s *GoBlogServer) Profile() goweb.HandlerFunc {
 }
 func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
+		user := s.GetStorage(ctx).GetUser(s.MustGetLoginUser(ctx).Id)
 		file, fileHeader, err := ctx.Request.FormFile("image")
+		article_id, err := strconv.Atoi(ctx.Request.FormValue("article_id"))
 		if err != nil {
 			panic(err)
 		}
-		uuid := uuid.New().String() + ".png"
+		var related_id *string
+		if article_id == 0 {
+			related_id = nil
+		} else {
+			id := strconv.Itoa(article_id)
+			related_id = &id
+		}
+		if err != nil {
+			panic(err)
+		}
+		name := uuid.New().String() + ".png"
 		dirPath, err := s.config.ImageDirPath()
 		if err != nil {
 			panic(err)
 		}
-		path := path.Join(dirPath, uuid)
-		url := "/src/image/" + uuid
+		path := path.Join(dirPath, name)
+		url := "/src/image/" + name
 		out, err := os.Create(path)
 		defer out.Close()
 		if err != nil {
 			panic(err)
 		}
 		io.Copy(out, file)
+		s.GetStorage(ctx).AddImage(related_id, 1, name, &user.Id)
 		data := struct {
 			DownloadUrl string `json:"downloadUrl"`
 			Filename    string `json:"filename"`

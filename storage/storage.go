@@ -26,6 +26,9 @@ type Storage interface {
 	FreshFriendlyLinkAccessTime(id string)
 	SetFriendlyLinkActiveStatus(id string, active bool)
 	DeleteFriendlyLink(id string)
+	AddImage(related_id *string, image_type int, image_src string, user_id *int)
+	UpdateImageRelatedId(image_src string, related_id string, user_id int)
+	GetImage(image_src string) map[string]interface{}
 	Commit()
 	Rollback()
 }

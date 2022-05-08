@@ -1,0 +1,2 @@
+ALTER TABLE public.image
+ALTER COLUMN user_id DROP NOT NULL;
