@@ -22,6 +22,7 @@ type ArticleDto struct {
 	UserName          string
 	CategoryName      string
 	Cover             *string
+	ExpireTime        string
 }
 type UserDto struct {
 	Id          int

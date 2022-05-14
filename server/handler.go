@@ -237,6 +237,17 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		len := len(articles)
 		for index := 0; index < len; index++ {
 			item := articles[index]
+			if item.ArticleType == 5 && item.ShareDeadlineTime != nil {
+				if seconds, err := checkShareDeadlineTime(*item.ShareDeadlineTime); err != nil {
+					panic(err)
+				} else {
+					if seconds < 0 {
+						articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds) + " seconds"
+					} else {
+						articles[index].ExpireTime = "expired"
+					}
+				}
+			}
 			if !strings.Contains(item.Title, key) && !strings.Contains(item.Content, key) {
 				articles = append(articles[:index], articles[index+1:]...)
 				index--
@@ -295,15 +306,26 @@ func (s *GoBlogServer) ArticleList() goweb.HandlerFunc {
 }
 
 type ArticleEditModel struct {
-	CategoryList []models.CategoryDto
-	Article      models.ArticleDto
-	UserId       int
+	CategoryList         []models.CategoryDto
+	Article              models.ArticleDto
+	UserId               int
+	ShareDeadlineTimeMin time.Time
+	ShareDeadlineTimeMax time.Time
 }
 
+func checkShareDeadlineTime(shareDeadlineTime time.Time) (int, error) {
+	diff := time.Now().UTC().Sub(shareDeadlineTime)
+	if diff.Hours() < -24*30 {
+		return 0, errors.New("deadline time invalid")
+	}
+	return int(diff.Seconds()), nil
+}
 func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		categoryList := s.GetStorage(ctx).GetCategories(s.MustGetLoginUser(ctx).Id, 0)
 		model := ArticleEditModel{CategoryList: categoryList, UserId: s.MustGetLoginUser(ctx).Id}
+		model.ShareDeadlineTimeMin = time.Now().Add(time.Minute)
+		model.ShareDeadlineTimeMax = time.Now().Add(time.Hour * 24 * 30)
 		model.Article.ArticleType = 2
 		if article, ok := ctx.Data["article"].(*models.ArticleDto); ok {
 			model.Article = *article
@@ -354,6 +376,9 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 			}
 			tmp = tmp.Add(time.Duration(int64(time.Minute) * int64(tom))).UTC()
 			shareDeadlineTimePtr = &tmp
+			if _, err := checkShareDeadlineTime(*shareDeadlineTimePtr); err != nil {
+				panic(err)
+			}
 		}
 		html := goweb.SanitizeHtml(ctx.Request.PostForm.Get("html"))
 		summary := ctx.Request.PostForm.Get("summary")
@@ -407,9 +432,13 @@ func (s *GoBlogServer) HasArticleReadAccess(user *models.UserDto, article *model
 			return false, errors.New("NO PERMISSION")
 		}
 	} else if article.ArticleType == 5 {
-		if !article.ShareDeadlineTime.After(time.Now().UTC()) {
-			if user == nil || user.Id != article.UserId {
-				return false, errors.New("THE LINK IS NO LONGER VALID")
+		if seconds, err := checkShareDeadlineTime(*article.ShareDeadlineTime); err != nil {
+			panic(err)
+		} else {
+			if seconds > 0 {
+				if user == nil || user.Id != article.UserId {
+					return false, errors.New("THE LINK IS NO LONGER VALID")
+				}
 			}
 		}
 	} else if article.ArticleType != 1 {

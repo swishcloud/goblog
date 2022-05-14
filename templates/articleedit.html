@@ -67,7 +67,8 @@
             </div>
             <div class="mt-2" id="shareDeadlineTimeDiv">
                 <label class="mt-2"> 截止日期：</label>
-                <input type="datetime-local" name="shareDeadlineTime" value='{{$shareDeadlineTime}}'>
+                <input type="datetime-local" name="shareDeadlineTime" value='{{$shareDeadlineTime}}'
+                    min="{{.ShareDeadlineTimeMin}}" max="{{.ShareDeadlineTimeMax}}" required>
             </div>
         </div>
         <button type="submit" class="btn btn-primary">发布</button>

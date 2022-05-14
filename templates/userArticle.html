@@ -25,10 +25,13 @@
     </div>
     {{range .Articles}}
     <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank" class="list-group-item list-group-item-action">
-        <div class="d-flex w-100 justify-content-between">
-            <h5 class="mb-1" style="width:70%;overflow: hidden;margin-right: 20px;">{{.Title}}</h5>
-            <span style="font-size:14px;">{{.CategoryName}}</span><span style="font-size:14px;">{{formatTime .InsertTime
-                ""}}</span>
+        <div style="display: flex;justify-content:space-between;">
+            <div class="mb-1" style="overflow: hidden;margin-right: 20px;">{{.Title}}</div>
+            <div>
+                <span class="" style="font-size:14px;">{{.CategoryName}}</span>
+                <span style="font-size:14px;">{{formatTime .InsertTime ""}}</span>
+                <span style="font-size:14px;">{{.ExpireTime}}</span>
+            </div>
         </div>
         <p class="mb-1" style="overflow:hidden">{{.Summary}}</p>
     </a>
