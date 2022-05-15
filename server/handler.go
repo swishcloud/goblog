@@ -242,13 +242,21 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 					panic(err)
 				} else {
 					if seconds < 0 {
-						articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds) + " seconds"
+						if seconds < -60*60*24 { //days
+							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60/60/24) + " d"
+						} else if seconds < -60*60 { //hours
+							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60/60) + " h"
+						} else if seconds < -60 { //minute
+							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60) + " m"
+						} else {
+							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds) + " s"
+						}
 					} else {
 						articles[index].ExpireTime = "expired"
 					}
 				}
 			}
-			if !strings.Contains(item.Title, key) && !strings.Contains(item.Content, key) {
+			if !strings.Contains(strings.ToUpper(item.Title), strings.ToUpper(key)) && !strings.Contains(strings.ToUpper(item.Content), strings.ToUpper(key)) {
 				articles = append(articles[:index], articles[index+1:]...)
 				index--
 				len--
