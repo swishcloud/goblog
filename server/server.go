@@ -24,20 +24,22 @@ import (
 	"github.com/swishcloud/gostudy/logger"
 	"github.com/swishcloud/goweb"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 	"gopkg.in/yaml.v2"
 )
 
 const cache_dir string = ".cache"
 
 type GoBlogServer struct {
-	engine          *goweb.Engine
-	storage         storage.Storage
-	config          *Config
-	FileCache       *FileCache
-	MemoryCache     *MemoryCache
-	skip_tls_verify bool
-	httpClient      *http.Client
-	rac             *common.RestApiClient
+	engine               *goweb.Engine
+	storage              storage.Storage
+	config               *Config
+	clientCredentialsCfg *clientcredentials.Config
+	FileCache            *FileCache
+	MemoryCache          *MemoryCache
+	skip_tls_verify      bool
+	httpClient           *http.Client
+	rac                  *common.RestApiClient
 }
 
 func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
@@ -57,14 +59,16 @@ func NewGoBlogServer(configPath string, skip_tls_verify bool) *GoBlogServer {
 	s.engine.ConcurrenceNumSem = make(chan int, s.config.ConcurrenceNum)
 	s.engine.WM.HandlerWidget = &HandlerWidget{s: s}
 	internal.LoggerWriter = logger.NewFileConcurrentWriter(s.config.Log_file)
-	internal.Logger = logger.NewLogger(internal.LoggerWriter, "GOBLOG")
-	s.engine.Logger = logger.NewLogger(internal.LoggerWriter, "GOWEB")
+	//internal.Logger = logger.NewLogger(internal.LoggerWriter, "GOBLOG")
+	//s.engine.Logger = logger.NewLogger(internal.LoggerWriter, "GOWEB")
+	internal.Logger = log.Default()
 	s.BindHandlers()
 	return s
 }
 func (s *GoBlogServer) Serve() {
 	go s.periodicTask()
 	internal.Logger.Println("listening on:", s.config.Host)
+	internal.Logger.Println("website url:", "https://"+s.config.Website_domain)
 	err := http.ListenAndServeTLS(s.config.Host, s.config.Tls_cert_file, s.config.Tls_key_file, s.engine)
 	if err != nil {
 		log.Fatal(err)
