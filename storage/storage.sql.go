@@ -200,10 +200,11 @@ func (m *SQLManager) UpdateArticle(id int, title string, summary string, html st
 		panic(fmt.Sprintf("articleType %d is invalid", articleType))
 	}
 	//backup
-	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.ShareDeadlineTime, article.CategoryId, key, article.Cover, &id, &article.InsertTime, nil, "backup article")
+	update_time := time.Now().UTC()
+	m.NewArticle(article.Title, article.Summary, article.Html, article.Content, article.UserId, 4, article.ShareDeadlineTime, article.CategoryId, key, article.Cover, &id, &update_time, nil, "backup article")
 	m.Tx.MustExec(`UPDATE public.article
 	SET category_id=$1, content=$2, html=$3, title=$4, type=$5,share_deadline_time=$6, update_time=$7, cover=$8, summary=$9
-	WHERE id=$10;`, categoryId, content, html, title, articleType, shareDeadlineTime, time.Now().UTC(), cover, summary, id)
+	WHERE id=$10;`, categoryId, content, html, title, articleType, shareDeadlineTime, update_time, cover, summary, id)
 }
 
 func (m *SQLManager) GetUser(userId int) *models.UserDto {
