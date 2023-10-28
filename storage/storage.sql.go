@@ -21,19 +21,19 @@ type SQLManager struct {
 
 var db *sql.DB
 
-func NewSQLManager(conn_info string) Storage {
+func NewSQLManager(conn_info string) (Storage, error) {
 	if db == nil {
 		if d, err := tx.NewDB("postgres", conn_info); err != nil {
-			panic(err)
+			return nil, err
 		} else {
 			db = d
 		}
 	}
 	tx, err := tx.NewTx(db)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &SQLManager{tx}
+	return &SQLManager{tx}, nil
 }
 
 func (m *SQLManager) Commit() {

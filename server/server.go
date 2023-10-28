@@ -109,7 +109,10 @@ func (s *GoBlogServer) updateHomeWallpaper() (err error) {
 		if err != nil {
 			return err
 		}
-		m := storage.NewSQLManager(s.config.SqlDataSourceName)
+		m, err := storage.NewSQLManager(s.config.SqlDataSourceName)
+		if err != nil {
+			return err
+		}
 		if m.GetImage(filename) == nil {
 			m.AddImage(nil, 2, filename, nil)
 		}
@@ -133,7 +136,10 @@ func (server *GoBlogServer) showErrorPage(ctx *goweb.Context, status int, msg st
 func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
 	m := ctx.Data["storage"]
 	if m == nil {
-		m = storage.NewSQLManager(server.config.SqlDataSourceName)
+		m, err := storage.NewSQLManager(server.config.SqlDataSourceName)
+		if err != nil {
+			panic(err)
+		}
 		ctx.Data["storage"] = m
 	}
 	return m.(storage.Storage)
@@ -329,7 +335,10 @@ type MemoryCache struct {
 
 func (cache *MemoryCache) FriendlyLinks(forceRefresh bool) ([]models.FriendlyLink, error) {
 	if cache.friendlyLinks == nil || forceRefresh {
-		store := storage.NewSQLManager(cache.server.config.SqlDataSourceName)
+		store, err := storage.NewSQLManager(cache.server.config.SqlDataSourceName)
+		if err != nil {
+			return nil, err
+		}
 		links, err := store.GetFriendlyLinks()
 		if err != nil {
 			return nil, err
