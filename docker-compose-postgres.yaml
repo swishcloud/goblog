@@ -1,8 +1,9 @@
 version: "3.7"
 services:
   db:
+    restart: always
     container_name: goblog-db
-    image: postgres:latest
+    image: postgres:14
     volumes:
       - "dbdata:/var/lib/postgresql/data"
     environment:

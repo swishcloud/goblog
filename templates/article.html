@@ -40,6 +40,9 @@
 {{end}}
 {{define "script"}}
 <script>
+    //crossorigin
+    Array.from(document.getElementsByTagName("img")).forEach(s => s.setAttribute("crossorigin", "use-credentials"))
+
     var id = $("#articleId").val()
     $("#delete").click(function () {
         if (confirm("确定要删除吗?")) {

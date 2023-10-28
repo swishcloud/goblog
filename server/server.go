@@ -136,7 +136,8 @@ func (server *GoBlogServer) showErrorPage(ctx *goweb.Context, status int, msg st
 func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
 	m := ctx.Data["storage"]
 	if m == nil {
-		m, err := storage.NewSQLManager(server.config.SqlDataSourceName)
+		var err error
+		m, err = storage.NewSQLManager(server.config.SqlDataSourceName)
 		if err != nil {
 			panic(err)
 		}

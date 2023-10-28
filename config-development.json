@@ -15,7 +15,7 @@
   "OAuthAuthUrl": "https://192.168.1.1:8010/oauth2/auth",
   "OAuthSecret": "GOBLOGSECRET",
   "OAuthLogoutUrl": "https://192.168.1.1:8010/oauth2/sessions/logout",
-  "OAuthLogoutRedirectUrl": "http://192.168.1.1:8080",
+  "OAuthLogoutRedirectUrl": "https://192.168.1.1:8080/login",
   "JWKJsonUrl": "https://192.168.1.1:8010/.well-known/jwks.json",
   "IntrospectTokenURL": "https://192.168.1.1:11109/api/introspect-token",
   "Tls_cert_file": ".cache/localhost.crt",
