@@ -28,6 +28,9 @@
         {{end}}
         <p>
             <span>发布时间:{{formatTime .Article.InsertTime ""}}</span>
+            {{if .Article.UpdateTime}}
+            <span>更新时间:{{formatTime .Article.UpdateTime ""}}</span>
+            {{end}}
             {{if eq .Readonly false}}
             <a href="/articleedit?id={{.Article.Id}}">编辑</a>
             <a href="javascript:;" id="delete">删除</a>

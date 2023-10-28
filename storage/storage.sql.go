@@ -44,20 +44,21 @@ func (m *SQLManager) Rollback() {
 }
 
 func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
-	r := m.Tx.QueryRow("select id,title,summary,html,content,insert_time,type,share_deadline_time,category_id,user_id,cover from article where id=$1 and is_deleted=false and is_banned=false", id)
+	r := m.Tx.QueryRow("select id,title,summary,html,content,insert_time,update_time,type,share_deadline_time,category_id,user_id,cover from article where id=$1 and is_deleted=false and is_banned=false", id)
 	var (
 		title             string
 		summary           string
 		html              string
 		content           string
 		insertTime        time.Time
+		updateTime        *time.Time
 		articleType       int
 		categoryId        int
 		shareDeadlineTime *time.Time
 		userId            int
 		cover             *string
 	)
-	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &articleType, &shareDeadlineTime, &categoryId, &userId, &cover)
+	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &updateTime, &articleType, &shareDeadlineTime, &categoryId, &userId, &cover)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -80,7 +81,7 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 	if err != nil {
 		panic(err)
 	}
-	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover}
+	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, UpdateTime: updateTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover}
 }
 func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId *int, secret_key string, backup_article_id *int) []models.ArticleDto {
 	var typeWhere string
@@ -109,7 +110,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId
 	}
 
 	var rows *sql.Rows
-	r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.category_id,a.user_id,a.share_deadline_time,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+backupArticleIdWhere+categoryWhere+" and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
+	r, err := m.Tx.Query("select a.id,a.title,a.summary,a.html,a.content,a.insert_time,a.update_time,a.category_id,a.user_id,a.share_deadline_time,c.user_name,a.type,b.name as category_name,a.cover from article as a join category as b on a.category_id=b.id join \"user\" as c on a.user_id=c.id where title like $1 "+typeWhere+userIdWhere+backupArticleIdWhere+categoryWhere+" and a.is_deleted=false and a.is_banned=false order by a.insert_time desc", "%"+key+"%")
 	if err != nil {
 		panic(err)
 	}
@@ -125,6 +126,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId
 			html              string
 			content           string
 			insertTime        time.Time
+			updateTime        *time.Time
 			categoryId        int
 			userId            int
 			shareDeadlineTime *time.Time
@@ -133,7 +135,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId
 			categoryName      string
 			cover             *string
 		)
-		err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &categoryId, &userId, &shareDeadlineTime, &userName, &articleType, &categoryName, &cover)
+		err := rows.Scan(&id, &title, &summary, &html, &content, &insertTime, &updateTime, &categoryId, &userId, &shareDeadlineTime, &userName, &articleType, &categoryName, &cover)
 		if err != nil {
 			panic(err)
 		}
@@ -159,7 +161,7 @@ func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId
 			content = ""
 		}
 
-		articles = append(articles, models.ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, CategoryId: categoryId, UserId: userId, ShareDeadlineTime: shareDeadlineTime, UserName: userName, ArticleType: articleType, CategoryName: categoryName, Cover: cover})
+		articles = append(articles, models.ArticleDto{Id: id, Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, UpdateTime: updateTime, CategoryId: categoryId, UserId: userId, ShareDeadlineTime: shareDeadlineTime, UserName: userName, ArticleType: articleType, CategoryName: categoryName, Cover: cover})
 	}
 	return articles
 }

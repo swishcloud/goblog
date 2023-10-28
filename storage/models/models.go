@@ -14,6 +14,7 @@ type ArticleDto struct {
 	Html       string
 	Content    string
 	InsertTime time.Time
+	UpdateTime *time.Time
 	//1 public, 2 private, 3 locked, 4 backup, 5 shared.
 	ArticleType       int
 	ShareDeadlineTime *time.Time
