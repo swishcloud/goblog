@@ -1,12 +1,17 @@
 package server
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -113,11 +118,19 @@ func (s *GoBlogServer) updateHomeWallpaper() (err error) {
 		if err != nil {
 			return err
 		}
-		if m.GetImage(filename) == nil {
-			m.AddImage(nil, 2, filename, nil)
+		image_src := filename
+		if s.config.UploadFile {
+			path, err := s.uploadFile(file_path)
+			if err != nil {
+				panic(err)
+			}
+			image_src = base64.StdEncoding.EncodeToString([]byte(path))
+		}
+		if m.GetImage(image_src) == nil {
+			m.AddImage(nil, 2, image_src, nil)
 		}
 		m.Commit()
-		s.FileCache.HomeWallpaper = filename
+		s.FileCache.HomeWallpaper = image_src
 		s.FileCache.Save()
 	} else {
 		internal.Logger.Println("home wallpaper is up to date,skip downloading")
@@ -167,24 +180,29 @@ func (s *GoBlogServer) NewPageModel(ctx *goweb.Context, title string, data inter
 }
 
 type Config struct {
-	FileLocation      string
-	Host              string
-	Website_domain    string
-	SqlDataSourceName string
-	WebsiteName       string
-	Key               string
-	PostKey           string
-	ConcurrenceNum    int
-	SmtpUsername      string
-	SmtpPassword      string
-	SmtpAddr          string
-	OAuthClientId     string
-	OAuthTokenUrl     string
-	OAuthAuthUrl      string
-	OAuthSecret       string
-	Tls_cert_file     string
-	Tls_key_file      string
-	Log_file          string
+	FileLocation            string
+	Host                    string
+	Website_domain          string
+	SqlDataSourceName       string
+	WebsiteName             string
+	Key                     string
+	PostKey                 string
+	ConcurrenceNum          int
+	SmtpUsername            string
+	SmtpPassword            string
+	SmtpAddr                string
+	OAuthClientId           string
+	OAuthTokenUrl           string
+	OAuthAuthUrl            string
+	OAuthSecret             string
+	ClientCredentialsId     string
+	ClientCredentialsSecret string
+	Tls_cert_file           string
+	Tls_key_file            string
+	Log_file                string
+	UploadFile              bool
+	UploadFileEndpoint      string
+	DownloadFileEndpoint    string
 
 	//not read from configuration file
 	LastUpdateTime string
@@ -348,4 +366,77 @@ func (cache *MemoryCache) FriendlyLinks(forceRefresh bool) ([]models.FriendlyLin
 		store.Commit()
 	}
 	return cache.friendlyLinks, nil
+}
+
+var tokenClient *http.Client
+
+func (s *GoBlogServer) GetTokenClient() *http.Client {
+	if tokenClient != nil {
+		return tokenClient
+	}
+	log.Printf("---------create token http client---------")
+	config := clientcredentials.Config{}
+	config.ClientID = s.config.ClientCredentialsId
+	config.ClientSecret = s.config.ClientCredentialsSecret
+	config.Scopes = []string{"openid"}
+	config.TokenURL = s.config.OAUTH2Config.Endpoint.TokenURL
+	tokenClient = config.Client(context.Background())
+	return tokenClient
+}
+
+func (s *GoBlogServer) uploadFile(filePath string) (url string, err error) {
+	api := s.config.UploadFileEndpoint
+	md5, err := common.FileMd5Hash(filePath)
+	if err != nil {
+		return url, err
+	}
+	path := "/"
+	file, err := os.Open(filePath)
+	if err != nil {
+		return url, err
+	}
+	defer file.Close()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	defer writer.Close()
+	writer.WriteField("md5", md5)
+	writer.WriteField("path", path)
+	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	if err != nil {
+		return url, err
+	}
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return url, err
+	}
+	err = writer.Close()
+	if err != nil {
+		return url, err
+	}
+	request, err := http.NewRequest("POST", api, body)
+	request.Header.Add("Content-Type", writer.FormDataContentType())
+	res, err := s.GetTokenClient().Do(request)
+	if err != nil {
+		return url, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode == http.StatusOK {
+		resBody := &bytes.Buffer{}
+		_, err = io.Copy(resBody, res.Body)
+		if err != nil {
+			return url, err
+		}
+
+		var obj map[string]interface{}
+		err = json.Unmarshal(resBody.Bytes(), &obj)
+		if err != nil {
+			return url, err
+		}
+		if obj["error"] != nil {
+			return url, errors.New(obj["error"].(string))
+		}
+		return obj["data"].(string), nil
+	}
+	return url, errors.New("upload file failed:" + res.Status)
 }

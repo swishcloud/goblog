@@ -20,5 +20,10 @@
   "IntrospectTokenURL": "https://192.168.1.1:11109/api/introspect-token",
   "Tls_cert_file": ".cache/localhost.crt",
   "Tls_key_file": ".cache/localhost.key",
-  "Log_file": ".cache/log.txt"
+  "Log_file": ".cache/log.txt",
+  "UploadFile": true,
+  "UploadFileEndpoint": "https://192.168.1.1:2002/file/upload",
+  "DownloadFileEndpoint": "https://192.168.1.1:2002",
+  "ClientCredentialsId": "b6cb9586-ac44-446f-b6fa-001bceb060e7",
+  "ClientCredentialsSecret": "GOBLOG_CLIENT_SECRET"
 }

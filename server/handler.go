@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,13 +64,14 @@ func (s *GoBlogServer) BindHandlers() {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
 	})
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
-		re := regexp.MustCompile(`/src/image/([\w-\.]+)`)
+		re := regexp.MustCompile(`/src/image/([\w-\.=]+)`)
 		match := re.FindStringSubmatch(context.Request.URL.Path)
+		image_src := ""
 		if match == nil {
 			s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
 			return
 		} else {
-			image_src := match[1]
+			image_src = match[1]
 			image := s.GetStorage(context).GetImage(image_src)
 			if image == nil {
 				s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
@@ -107,7 +109,52 @@ func (s *GoBlogServer) BindHandlers() {
 				panic("fatal error")
 			}
 		}
-		http.StripPrefix("/src/", http.FileServer(http.Dir(s.config.FileLocation))).ServeHTTP(context.Writer, context.Request)
+		if s.config.UploadFile {
+			data, err := base64.StdEncoding.DecodeString(image_src)
+			if err != nil {
+				panic(err)
+			}
+			decoded_src := string(data)
+
+			re := regexp.MustCompile(`(?:.*)(\.[^\.]+)`)
+			matches := re.FindStringSubmatch(decoded_src)
+			uv := url.Values{}
+			uv.Add("raw", matches[1])
+
+			res, err := s.GetTokenClient().Get(s.config.DownloadFileEndpoint + decoded_src + "?" + uv.Encode())
+			if err != nil {
+				panic(err)
+			}
+			defer res.Body.Close()
+			path, err := s.config.cachePath(decoded_src)
+			if err != nil {
+				panic(err)
+			}
+			file, err := os.Create(path)
+			if err != nil {
+				panic(err)
+			}
+			defer file.Close()
+			_, err = io.Copy(file, res.Body)
+			if err != nil {
+				panic(err)
+			}
+			res.Body.Close()
+			file.Close()
+
+			// Content-Type: application/pdf
+			// Content-Disposition: inline; filename="filename.pdf"
+			re = regexp.MustCompile(`(?:.*/)([^\/]+)`)
+			matches = re.FindStringSubmatch(decoded_src)
+
+			context.Writer.Header().Set("Content-Type", "image/jpeg")
+			context.Writer.Header().Set("Content-Disposition", "inline; filename=\""+matches[1]+"\"")
+
+			http.ServeFile(context.Writer, context.Request, path)
+
+		} else {
+			http.StripPrefix("/src/", http.FileServer(http.Dir(s.config.FileLocation))).ServeHTTP(context.Writer, context.Request)
+		}
 	})
 	group.GET(PATH_ARTICLELIST, s.ArticleList())
 	auth.GET(PATH_ARTICLEEDIT, s.ArticleEdit())
@@ -415,7 +462,7 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 		now := time.Now().UTC()
 		if intId == 0 {
 			intId = s.GetStorage(ctx).NewArticle(title, summary, html, content, s.MustGetLoginUser(ctx).Id, intArticleType, shareDeadlineTimePtr, intCategoryId, s.config.PostKey, cover, nil, &now, nil, "New article by user")
-			re := regexp.MustCompile(`!\[image\]\(/src/image/([a-z\d-\.]+)\)`)
+			re := regexp.MustCompile(`!\[image\]\(/src/image/([\w\d-\.=]+)\)`)
 			matches := re.FindAllStringSubmatch(content, -1)
 			for _, match := range matches {
 				image_src := match[1]
@@ -685,6 +732,9 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		user := s.GetStorage(ctx).GetUser(s.MustGetLoginUser(ctx).Id)
 		file, fileHeader, err := ctx.Request.FormFile("image")
+		if err != nil {
+			panic(err)
+		}
 		article_id, err := strconv.Atoi(ctx.Request.FormValue("article_id"))
 		if err != nil {
 			panic(err)
@@ -699,24 +749,40 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 		if err != nil {
 			panic(err)
 		}
-		name := uuid.New().String() + ".png"
+		re := regexp.MustCompile(`(?:.*?)(\.[^\.]+$)`)
+		matches := re.FindStringSubmatch(fileHeader.Filename)
+		name := uuid.New().String() + matches[1]
 		dirPath, err := s.config.ImageDirPath()
 		if err != nil {
 			panic(err)
 		}
 		path := path.Join(dirPath, name)
-		url := "/src/image/" + name
 		out, err := os.Create(path)
+		if err != nil {
+			panic(err)
+		}
 		defer out.Close()
 		if err != nil {
 			panic(err)
 		}
-		io.Copy(out, file)
-		s.GetStorage(ctx).AddImage(related_id, 1, name, &user.Id)
+		_, err = io.Copy(out, file)
+		if err != nil {
+			panic(err)
+		}
+		out.Close()
+		image_src := name
+		if s.config.UploadFile {
+			path, err = s.uploadFile(path)
+			if err != nil {
+				panic(err)
+			}
+			image_src = base64.StdEncoding.EncodeToString([]byte(path))
+		}
+		s.GetStorage(ctx).AddImage(related_id, 1, image_src, &user.Id)
 		data := struct {
 			DownloadUrl string `json:"downloadUrl"`
 			Filename    string `json:"filename"`
-		}{DownloadUrl: url, Filename: fileHeader.Filename}
+		}{DownloadUrl: "/src/image/" + image_src, Filename: fileHeader.Filename}
 		json, err := json.Marshal(data)
 		if err != nil {
 			panic(err)
@@ -725,7 +791,6 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 		ctx.Writer.Write(json)
 	}
 }
-
 func (s *GoBlogServer) FriendlyLink() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		links, err := s.MemoryCache.FriendlyLinks(true)

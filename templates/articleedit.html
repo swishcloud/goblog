@@ -119,11 +119,16 @@
         uploadMethod: "post",
         jsonFieldName: "downloadUrl",
         uploadFieldName: "image",
+        allowedTypes: ['image/jpeg', 'image/png', 'image/jpg', 'image/gif', 'image/heif'],
         extraParams: {
             article_id: "{{.Article.Id}}"
         },
         onFileUploadResponse: function (res) {
             console.log(res)
+            res = JSON.parse(res.response)
+            if (res.error) {
+                app.showError($('#error'), res.error)
+            }
         },
         urlText: "![image]({filename})"
     });
