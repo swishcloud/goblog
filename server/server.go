@@ -440,3 +440,43 @@ func (s *GoBlogServer) uploadFile(filePath string) (url string, err error) {
 	}
 	return url, errors.New("upload file failed:" + res.Status)
 }
+
+func (s *GoBlogServer) UploadLocalFiles() error {
+	store, err := storage.NewSQLManager(s.config.SqlDataSourceName)
+	if err != nil {
+		return err
+	}
+	images := store.GetLocalOnlyImages()
+	store.Commit()
+	var index int = -1
+	for _, v := range images {
+		store, err := storage.NewSQLManager(s.config.SqlDataSourceName)
+		if err != nil {
+			return err
+		}
+		index++
+		log.Printf("progress: %d/%d\r\n", index+1, len(images))
+		id := v["id"].(string)
+		image_src := v["image_src"].(string)
+		fmt.Println(id, image_src)
+		//upload file
+		dirPath, err := s.config.ImageDirPath()
+		if err != nil {
+			return err
+		}
+		filepath := path.Join(dirPath, image_src)
+		url, err := s.uploadFile(filepath)
+		if err != nil {
+			return err
+		}
+
+		//upload column cloud_url
+		err = store.UpdateImageCloudUrl(id, url)
+		if err != nil {
+			return err
+		}
+		fmt.Println(url)
+		store.Commit()
+	}
+	return nil
+}

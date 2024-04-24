@@ -384,3 +384,14 @@ func (m *SQLManager) UpdateImageRelatedId(image_src string, related_id string, u
 func (m *SQLManager) GetImage(image_src string) map[string]interface{} {
 	return m.Tx.ScanRow("select id, related_id,  image_type, image_src,cloud_url,is_deleted,insert_time,user_id from public.image where image_src=$1 and is_deleted=false", image_src)
 }
+func (m *SQLManager) GetLocalOnlyImages() []map[string]interface{} {
+	return m.Tx.ScanRows("select id, image_src,cloud_url from public.image where is_deleted=false and cloud_url is null")
+}
+
+func (m *SQLManager) UpdateImageCloudUrl(id string, cloud_url string) error {
+	_, err := m.Tx.Exec("update public.image set cloud_url=$2 where is_deleted=false and id=$1", id, cloud_url)
+	if err != nil {
+		return err
+	}
+	return nil
+}
