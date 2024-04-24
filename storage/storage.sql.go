@@ -357,7 +357,7 @@ func (m *SQLManager) SetFriendlyLinkActiveStatus(id string, active bool) {
 func (m *SQLManager) DeleteFriendlyLink(id string) {
 	m.Tx.MustExec(`update public.friendly_link set is_deleted=true where id=$1`, id)
 }
-func (m *SQLManager) AddImage(related_id *string, image_type int, image_src string, user_id *int) {
+func (m *SQLManager) AddImage(related_id *string, image_type int, image_src string, cloud_url *string, user_id *int) {
 	if image_type == 1 { //article image
 		if user_id == nil {
 			panic("need to associate article image with user id")
@@ -370,8 +370,8 @@ func (m *SQLManager) AddImage(related_id *string, image_type int, image_src stri
 		panic("unsupported image type")
 	}
 	m.Tx.MustExec(`INSERT INTO public.image(
-		id, related_id,  image_type, image_src,is_deleted,insert_time,user_id)
-		VALUES ($1,$2,$3,$4,$5,$6,$7);`, uuid.New(), related_id, image_type, image_src, false, time.Now().UTC(), user_id)
+		id, related_id,  image_type, image_src, cloud_url,is_deleted,insert_time,user_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8);`, uuid.New(), related_id, image_type, image_src, cloud_url, false, time.Now().UTC(), user_id)
 }
 func (m *SQLManager) UpdateImageRelatedId(image_src string, related_id string, user_id int) {
 	r := m.Tx.MustExec(`update public.image set related_id=$1,update_time=$4 where related_id is null and image_src=$2 and user_id=$3 and is_deleted=false`, related_id, image_src, user_id, time.Now().UTC())
@@ -382,5 +382,5 @@ func (m *SQLManager) UpdateImageRelatedId(image_src string, related_id string, u
 	}
 }
 func (m *SQLManager) GetImage(image_src string) map[string]interface{} {
-	return m.Tx.ScanRow("select id, related_id,  image_type, image_src,is_deleted,insert_time,user_id from public.image where image_src=$1 and is_deleted=false", image_src)
+	return m.Tx.ScanRow("select id, related_id,  image_type, image_src,cloud_url,is_deleted,insert_time,user_id from public.image where image_src=$1 and is_deleted=false", image_src)
 }

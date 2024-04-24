@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -119,15 +118,16 @@ func (s *GoBlogServer) updateHomeWallpaper() (err error) {
 			return err
 		}
 		image_src := filename
+		var cloud_url *string = nil
 		if s.config.UploadFile {
 			path, err := s.uploadFile(file_path)
 			if err != nil {
 				panic(err)
 			}
-			image_src = base64.StdEncoding.EncodeToString([]byte(path))
+			cloud_url = &path
 		}
 		if m.GetImage(image_src) == nil {
-			m.AddImage(nil, 2, image_src, nil)
+			m.AddImage(nil, 2, image_src, cloud_url, nil)
 		}
 		m.Commit()
 		s.FileCache.HomeWallpaper = image_src

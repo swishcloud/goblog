@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,16 +65,19 @@ func (s *GoBlogServer) BindHandlers() {
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
 		re := regexp.MustCompile(`/src/image/([\w-\.=]+)`)
 		match := re.FindStringSubmatch(context.Request.URL.Path)
-		image_src := ""
+		image_src := match[1]
+		var cloud_url string
 		if match == nil {
 			s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
 			return
 		} else {
-			image_src = match[1]
 			image := s.GetStorage(context).GetImage(image_src)
 			if image == nil {
 				s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
 				return
+			}
+			if image["cloud_url"] != nil {
+				cloud_url = image["cloud_url"].(string)
 			}
 			image_type, err := strconv.Atoi(image["image_type"].(string))
 			if err != nil {
@@ -110,23 +112,21 @@ func (s *GoBlogServer) BindHandlers() {
 			}
 		}
 		if s.config.UploadFile {
-			data, err := base64.StdEncoding.DecodeString(image_src)
-			if err != nil {
-				panic(err)
+			if cloud_url == "" {
+				s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
+				return
 			}
-			decoded_src := string(data)
-
 			re := regexp.MustCompile(`(?:.*)(\.[^\.]+)`)
-			matches := re.FindStringSubmatch(decoded_src)
+			matches := re.FindStringSubmatch(cloud_url)
 			uv := url.Values{}
 			uv.Add("raw", matches[1])
 
-			res, err := s.GetTokenClient().Get(s.config.DownloadFileEndpoint + decoded_src + "?" + uv.Encode())
+			res, err := s.GetTokenClient().Get(s.config.DownloadFileEndpoint + cloud_url + "?" + uv.Encode())
 			if err != nil {
 				panic(err)
 			}
 			defer res.Body.Close()
-			path, err := s.config.cachePath(decoded_src)
+			path, err := s.config.cachePath(cloud_url)
 			if err != nil {
 				panic(err)
 			}
@@ -145,7 +145,7 @@ func (s *GoBlogServer) BindHandlers() {
 			// Content-Type: application/pdf
 			// Content-Disposition: inline; filename="filename.pdf"
 			re = regexp.MustCompile(`(?:.*/)([^\/]+)`)
-			matches = re.FindStringSubmatch(decoded_src)
+			matches = re.FindStringSubmatch(cloud_url)
 
 			context.Writer.Header().Set("Content-Type", "image/jpeg")
 			context.Writer.Header().Set("Content-Disposition", "inline; filename=\""+matches[1]+"\"")
@@ -588,7 +588,10 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 		name := session.Claims["name"].(string)
 		iss := session.Claims["iss"].(string)
 		email := session.Claims["email"].(string)
-		avatar := session.Claims["avatar"].(string)
+		avatar := ""
+		if session.Claims["avatar"] != nil {
+			avatar = session.Claims["avatar"].(string)
+		}
 		user, err := s.GetStorage(ctx).GetUserByOP(id, iss)
 		if err != nil {
 			s.GetStorage(ctx).NewUser(name, iss, id, email, avatar)
@@ -599,7 +602,7 @@ func (s *GoBlogServer) LoginCallback() goweb.HandlerFunc {
 		}
 		session.Data[session_user_key] = user
 		internal.Logger.Println("A user logged successfully:" + user.UserName)
-		http.Redirect(ctx.Writer, ctx.Request, "/", 302)
+		http.Redirect(ctx.Writer, ctx.Request, "/", http.StatusFound)
 	}
 }
 
@@ -762,23 +765,21 @@ func (s *GoBlogServer) Upload() goweb.HandlerFunc {
 			panic(err)
 		}
 		defer out.Close()
-		if err != nil {
-			panic(err)
-		}
 		_, err = io.Copy(out, file)
 		if err != nil {
 			panic(err)
 		}
 		out.Close()
 		image_src := name
+		var cloud_url *string = nil
 		if s.config.UploadFile {
 			path, err = s.uploadFile(path)
 			if err != nil {
 				panic(err)
 			}
-			image_src = base64.StdEncoding.EncodeToString([]byte(path))
+			cloud_url = &path
 		}
-		s.GetStorage(ctx).AddImage(related_id, 1, image_src, &user.Id)
+		s.GetStorage(ctx).AddImage(related_id, 1, image_src, cloud_url, &user.Id)
 		data := struct {
 			DownloadUrl string `json:"downloadUrl"`
 			Filename    string `json:"filename"`
