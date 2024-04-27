@@ -465,6 +465,11 @@ func (s *GoBlogServer) UploadLocalFiles() error {
 			return err
 		}
 		filepath := path.Join(dirPath, image_src)
+		if exists, _ := common.CheckIfFileExists(filepath); !exists {
+			fmt.Printf("the file path does not exist:%s\r\n", filepath)
+			store.Commit()
+			continue
+		}
 		url, err := s.uploadFile(filepath)
 		if err != nil {
 			return err
