@@ -184,6 +184,7 @@ type Config struct {
 	Host                    string
 	Website_domain          string
 	SqlDataSourceName       string
+	LogSqlDataSourceName    string
 	WebsiteName             string
 	Key                     string
 	PostKey                 string

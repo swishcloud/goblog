@@ -1,12 +1,14 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html/template"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -23,6 +25,7 @@ import (
 	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/goweb"
 	"github.com/swishcloud/goweb/auth"
+	goweblog "github.com/swishcloud/goweb/log"
 )
 
 const session_user_key = "session_user"
@@ -52,16 +55,14 @@ const (
 )
 
 func (s *GoBlogServer) BindHandlers() {
-	group := s.engine.RouterGroup
-	auth := group.Group()
-	auth.Use(s.AuthMiddleware())
+	//bind log,compression middlewares
+	db, _ := sql.Open("postgres", s.config.LogSqlDataSourceName)
+	if err := goweblog.InitDB(db); err != nil {
+		log.Fatal(err)
+	}
 
-	group.GET("/", s.ArticleList())
-	group.RegexMatch(regexp.MustCompile(`^/u/\d+/post/\d+$`), s.Article())
-	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), s.UserArticle())
-	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
-		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
-	})
+	group := &s.engine.RouterGroup
+	group.Use(goweblog.NewLoggingMiddleware(s.config.Website_domain, goweblog.NewDatabaseLogger(db)).Handler)
 	group.RegexMatch(regexp.MustCompile(`/src/.+`), func(context *goweb.Context) {
 		re := regexp.MustCompile(`/src/image/([\w-\.=]+)`)
 		match := re.FindStringSubmatch(context.Request.URL.Path)
@@ -156,7 +157,16 @@ func (s *GoBlogServer) BindHandlers() {
 			http.StripPrefix("/src/", http.FileServer(http.Dir(s.config.FileLocation))).ServeHTTP(context.Writer, context.Request)
 		}
 	})
+	group.Use(goweb.CompressionMiddleware)
+	group.GET("/", s.ArticleList())
+	group.RegexMatch(regexp.MustCompile(`^/u/\d+/post/\d+$`), s.Article())
+	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), s.UserArticle())
+	group.RegexMatch(regexp.MustCompile(`/static/.+`), func(context *goweb.Context) {
+		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
+	})
 	group.GET(PATH_ARTICLELIST, s.ArticleList())
+	auth := group.Group()
+	auth.Use(s.AuthMiddleware())
 	auth.GET(PATH_ARTICLEEDIT, s.ArticleEdit())
 	auth.POST(PATH_ARTICLESAVE, s.ArticleSave())
 	auth.POST(PATH_ARTICLEDELETE, s.ArticleDelete())

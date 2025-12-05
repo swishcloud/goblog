@@ -12,7 +12,6 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang-migrate/migrate v3.5.4+incompatible
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.3.0
@@ -22,11 +21,10 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/spf13/cobra v1.4.0
-	github.com/swishcloud/gostudy v0.0.0-20220416133912-4aab12987853
-	github.com/swishcloud/goweb v0.0.0-20220502132155-40593dfb737e
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
-	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
-	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	github.com/swishcloud/gostudy v0.1.9
+	github.com/swishcloud/gostudy/aesencryption v0.0.0-20240421081823-5adb8dc0336a
+	github.com/swishcloud/gostudy/common v0.0.0-20240421081823-5adb8dc0336a
+	github.com/swishcloud/goweb v0.2.0
+	golang.org/x/oauth2 v0.14.0
 	gopkg.in/yaml.v2 v2.4.0
 )

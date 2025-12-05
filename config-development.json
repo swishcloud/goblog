@@ -3,6 +3,7 @@
   "Host": "0.0.0.0:8080",
   "Website_domain": "192.168.1.1:8080",
   "SqlDataSourceName": "postgres://goblog:secret@192.168.1.1:6011/goblog?sslmode=disable",
+  "LogSqlDataSourceName": "postgres://filesync:secret@192.168.1.1:6010/sitelog?sslmode=disable",
   "WebsiteName": "GOBLOG",
   "ConcurrenceNum": 10,
   "Key": "Fv`Oj^M-DG_OP:9_m6l;%\"8;1D(hx$Ie",
