@@ -21,6 +21,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/swishcloud/goblog/internal"
+	"github.com/swishcloud/goblog/storage"
 	"github.com/swishcloud/goblog/storage/models"
 	"github.com/swishcloud/gostudy/common"
 	"github.com/swishcloud/goweb"
@@ -158,6 +159,7 @@ func (s *GoBlogServer) BindHandlers() {
 		}
 	})
 	group.Use(goweb.CompressionMiddleware)
+	group.Use(s.ErrorMiddleware)
 	group.GET("/", s.ArticleList())
 	group.RegexMatch(regexp.MustCompile(`^/u/\d+/post/\d+$`), s.Article())
 	group.RegexMatch(regexp.MustCompile(`^/user/\d+/article$`), s.UserArticle())
@@ -253,6 +255,52 @@ func (s *GoBlogServer) MustGetLoginUser(ctx *goweb.Context) *models.UserDto {
 	}
 	return u
 }
+
+type ArticlePermissionChecher interface {
+	editArticle(userId int, articleId int)
+	editArticleWithBackup(userId int, articleId int, articleBackupId int)
+	viewArticle(userId int, articleId int)
+}
+type GOBLOGArticlePermissionChecher struct {
+	storage storage.Storage
+	key     string
+}
+
+func (checker GOBLOGArticlePermissionChecher) editArticle(userId int, articleId int) {
+	article := checker.storage.GetArticle(articleId, checker.key)
+	if article.UserId != userId {
+		panic("no permission to edit the article")
+	}
+	if article.BackupArticleId != nil {
+		panic("can't edit backup article")
+	}
+}
+func (checker GOBLOGArticlePermissionChecher) editArticleWithBackup(userId int, articleId int, articleBackupId int) {
+	article := checker.storage.GetArticle(articleId, checker.key)
+	if article.UserId != userId {
+		panic("no permission to edit the article")
+	}
+	if article.BackupArticleId != nil {
+		panic("can't edit backup article")
+	}
+
+	historyArticle := checker.storage.GetArticle(articleBackupId, checker.key)
+	if historyArticle.UserId != userId {
+		panic("no permission to access the backup article")
+	}
+
+	if historyArticle.BackupArticleId != &articleId {
+		panic("the backup article is not related to this original article")
+	}
+}
+func (checker GOBLOGArticlePermissionChecher) viewArticle(userId int, articleId int) {
+	article := checker.storage.GetArticle(articleId, checker.key)
+	if article.UserId != userId {
+		panic("no permission to read the article")
+	}
+
+}
+
 func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		key := ctx.Request.Form.Get("key")
@@ -385,6 +433,7 @@ func checkShareDeadlineTime(shareDeadlineTime time.Time) (int, error) {
 	}
 	return int(diff.Seconds()), nil
 }
+
 func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		categoryList := s.GetStorage(ctx).GetCategories(s.MustGetLoginUser(ctx).Id, 0)
@@ -394,6 +443,7 @@ func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 		model.Article.ArticleType = 2
 		if article, ok := ctx.Data["article"].(*models.ArticleDto); ok {
 			model.Article = *article
+			s.GetArticlePermissionChecher(ctx).editArticle(s.MustGetLoginUser(ctx).Id, model.Article.Id)
 		} else {
 			id := ctx.Request.URL.Query().Get("id")
 			if id != "" {
@@ -401,6 +451,7 @@ func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 				if err != nil {
 					panic(err)
 				}
+				s.GetArticlePermissionChecher(ctx).editArticle(s.MustGetLoginUser(ctx).Id, intId)
 				article := s.GetStorage(ctx).GetArticle(intId, s.config.PostKey)
 				if article.ArticleType == 3 {
 					http.Redirect(ctx.Writer, ctx.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=1", 302)
@@ -419,7 +470,10 @@ func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 			if err != nil {
 				panic(err)
 			}
+			s.GetArticlePermissionChecher(ctx).editArticleWithBackup(s.MustGetLoginUser(ctx).Id, model.Article.Id, historyIdInt)
+
 			historyArticle := s.GetStorage(ctx).GetArticle(historyIdInt, s.config.PostKey)
+
 			model.Article.Title = "[History]" + historyArticle.Title
 			model.Article.Content = historyArticle.Content
 			model.Article.Html = historyArticle.Html
@@ -491,6 +545,7 @@ func (s *GoBlogServer) ArticleSave() goweb.HandlerFunc {
 				s.GetStorage(ctx).UpdateImageRelatedId(image_src, strconv.Itoa(intId), s.MustGetLoginUser(ctx).Id)
 			}
 		} else {
+			s.GetArticlePermissionChecher(ctx).editArticle(s.MustGetLoginUser(ctx).Id, intId)
 			s.GetStorage(ctx).UpdateArticle(intId, title, summary, html, content, intArticleType, shareDeadlineTimePtr, categoryId, s.config.PostKey, s.MustGetLoginUser(ctx).Id, cover)
 		}
 		ctx.Success(intId)
@@ -527,6 +582,7 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		re := regexp.MustCompile(`\d+$`)
 		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
+		s.GetArticlePermissionChecher(ctx).viewArticle(s.MustGetLoginUser(ctx).Id, id)
 		article := s.GetStorage(ctx).GetArticle(id, s.config.PostKey)
 		if article == nil {
 			s.showErrorPage(ctx, http.StatusNotFound, "404 THE ARTICLE DOES NOT EXIST")
@@ -580,10 +636,12 @@ func (s *GoBlogServer) ArticleLockPost() goweb.HandlerFunc {
 		}
 		if t == 1 {
 			ctx.Data["article"] = article
+			s.GetArticlePermissionChecher(ctx).editArticle(s.MustGetLoginUser(ctx).Id, intId)
 			s.ArticleEdit()(ctx)
 		} else if t == 2 {
 			model := ArticleModel{Article: article, Readonly: false}
 			model.Html = template.HTML(article.Html)
+			s.GetArticlePermissionChecher(ctx).viewArticle(s.MustGetLoginUser(ctx).Id, intId)
 			ctx.RenderPage(s.NewPageModel(ctx, article.Title, model), "templates/layout.html", "templates/article.html")
 		}
 	}

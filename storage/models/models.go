@@ -24,6 +24,7 @@ type ArticleDto struct {
 	CategoryName      string
 	Cover             *string
 	ExpireTime        string
+	BackupArticleId   *int
 }
 type UserDto struct {
 	Id          int

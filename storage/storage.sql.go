@@ -44,7 +44,7 @@ func (m *SQLManager) Rollback() {
 }
 
 func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
-	r := m.Tx.QueryRow("select id,title,summary,html,content,insert_time,update_time,type,share_deadline_time,category_id,user_id,cover from article where id=$1 and is_deleted=false and is_banned=false", id)
+	r := m.Tx.QueryRow("select id,title,summary,html,content,insert_time,update_time,type,share_deadline_time,category_id,user_id,cover,backup_article_id from article where id=$1 and is_deleted=false and is_banned=false", id)
 	var (
 		title             string
 		summary           string
@@ -57,8 +57,9 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 		shareDeadlineTime *time.Time
 		userId            int
 		cover             *string
+		backupArticleId   *int
 	)
-	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &updateTime, &articleType, &shareDeadlineTime, &categoryId, &userId, &cover)
+	err := r.Scan(&id, &title, &summary, &html, &content, &insertTime, &updateTime, &articleType, &shareDeadlineTime, &categoryId, &userId, &cover, &backupArticleId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil
@@ -81,7 +82,7 @@ func (m *SQLManager) GetArticle(id int, key string) *models.ArticleDto {
 	if err != nil {
 		panic(err)
 	}
-	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, UpdateTime: updateTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover}
+	return &models.ArticleDto{Title: title, Summary: summary, Html: html, Content: content, InsertTime: insertTime, UpdateTime: updateTime, Id: id, ArticleType: articleType, ShareDeadlineTime: shareDeadlineTime, CategoryId: categoryId, UserId: userId, Cover: cover, BackupArticleId: backupArticleId}
 }
 func (m *SQLManager) GetArticles(articleType, userId int, key string, categoryId *int, secret_key string, backup_article_id *int) []models.ArticleDto {
 	var typeWhere string

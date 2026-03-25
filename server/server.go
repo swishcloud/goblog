@@ -158,6 +158,9 @@ func (server *GoBlogServer) GetStorage(ctx *goweb.Context) storage.Storage {
 	}
 	return m.(storage.Storage)
 }
+func (server *GoBlogServer) GetArticlePermissionChecher(ctx *goweb.Context) ArticlePermissionChecher {
+	return GOBLOGArticlePermissionChecher{storage: server.GetStorage(ctx), key: server.config.PostKey}
+}
 
 func (server *GoBlogServer) checkReferer(ctx *goweb.Context) bool {
 	referer := ctx.Request.Header.Get("Referer")
@@ -296,17 +299,22 @@ func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 	if m != nil {
 		m.(storage.Storage).Commit()
 	}
-	if ctx.Err != nil {
-		if ctx.Request.Method == http.MethodPost {
-			ctx.Failed(ctx.Err.Error())
-		} else {
-			data := struct {
-				Desc string
-			}{Desc: ctx.Err.Error()}
-			model := hw.s.NewPageModel(ctx, "ERROR", data)
-			ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
+}
+func (s *GoBlogServer) ErrorMiddleware(ctx *goweb.Context) {
+	defer func() {
+		if err := recover(); err != nil {
+			if ctx.Request.Method == http.MethodPost {
+				ctx.Failed(ctx.Err.Error())
+			} else {
+				data := struct {
+					Desc string
+				}{Desc: fmt.Sprintf("%s", err)}
+				model := s.NewPageModel(ctx, "ERROR", data)
+				ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
+			}
 		}
-	}
+	}()
+	ctx.Next()
 }
 
 type FileCache struct {
