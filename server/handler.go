@@ -90,16 +90,7 @@ func (s *GoBlogServer) BindHandlers() {
 				if err != nil {
 					panic(err)
 				}
-				article := s.GetStorage(context).GetArticle(article_id, s.config.PostKey)
-				if article == nil {
-					s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
-					return
-				}
-				user, _ := s.GetLoginUser(context)
-				if _, err := s.HasArticleReadAccess(user, article); err != nil {
-					s.showErrorPage(context, http.StatusNotFound, "404 NOT FOUND")
-					return
-				}
+				s.GetArticlePermissionChecher(context).viewArticle(s.MustGetLoginUser(context).Id, article_id)
 			} else if image_type == 2 {
 				is_deleted, err := strconv.ParseBool(image["is_deleted"].(string))
 				if err != nil {
@@ -289,16 +280,29 @@ func (checker GOBLOGArticlePermissionChecher) editArticleWithBackup(userId int, 
 		panic("no permission to access the backup article")
 	}
 
-	if historyArticle.BackupArticleId != &articleId {
+	if *historyArticle.BackupArticleId != articleId {
 		panic("the backup article is not related to this original article")
 	}
 }
 func (checker GOBLOGArticlePermissionChecher) viewArticle(userId int, articleId int) {
 	article := checker.storage.GetArticle(articleId, checker.key)
-	if article.UserId != userId {
-		panic("no permission to read the article")
+	if article.ArticleType == 2 || article.ArticleType == 3 || article.ArticleType == 4 {
+		if article.UserId != userId {
+			panic("NO PERMISSION")
+		}
+	} else if article.ArticleType == 5 {
+		if seconds, err := checkShareDeadlineTime(*article.ShareDeadlineTime); err != nil {
+			panic(err)
+		} else {
+			if seconds > 0 {
+				if userId != article.UserId {
+					panic("THE LINK IS NO LONGER VALID")
+				}
+			}
+		}
+	} else if article.ArticleType != 1 {
+		panic("TYPE ERROR")
 	}
-
 }
 
 func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
@@ -593,9 +597,6 @@ func (s *GoBlogServer) Article() goweb.HandlerFunc {
 		if user != nil && user.Id == article.UserId && article.ArticleType == 3 {
 			http.Redirect(ctx.Writer, ctx.Request, PATH_ARTICLELOCK+"?id="+strconv.Itoa(article.Id)+"&t=2", 302)
 			return
-		}
-		if _, err := s.HasArticleReadAccess(user, article); err != nil {
-			panic(err)
 		}
 		if user != nil && user.Id == article.UserId && article.ArticleType != 4 {
 			model.Readonly = false
