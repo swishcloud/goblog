@@ -412,6 +412,18 @@ func (s *GoBlogServer) ArticleEdit() goweb.HandlerFunc {
 				model.Article = *article
 			}
 		}
+
+		historyId := ctx.Request.URL.Query().Get("history_id")
+		if historyId != "" {
+			historyIdInt, err := strconv.Atoi(historyId)
+			if err != nil {
+				panic(err)
+			}
+			historyArticle := s.GetStorage(ctx).GetArticle(historyIdInt, s.config.PostKey)
+			model.Article.Title = "[History]" + historyArticle.Title
+			model.Article.Content = historyArticle.Content
+			model.Article.Html = historyArticle.Html
+		}
 		ctx.RenderPage(s.NewPageModel(ctx, "写文章", model), "templates/layout.html", "templates/articleedit.html")
 	}
 }
