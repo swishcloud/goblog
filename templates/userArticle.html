@@ -23,19 +23,9 @@
             <i class="fa fa-search"></i>
         </button>
     </div>
-    {{range .Articles}}
-    <a href="/u/{{.UserId}}/post/{{.Id}}" target="_blank" class="list-group-item list-group-item-action">
-        <div style="display: flex;justify-content:space-between;">
-            <div class="mb-1" style="overflow: hidden;margin-right: 20px;">{{.Title}}</div>
-            <div>
-                <span class="" style="font-size:14px;">{{.CategoryName}}</span>
-                <span style="font-size:14px;">{{formatTime .InsertTime ""}}</span>
-                <span style="font-size:14px;">{{.ExpireTime}}</span>
-            </div>
-        </div>
-        <p class="mb-1" style="overflow:hidden">{{.Summary}}</p>
-    </a>
-    {{end}}
+    <div id="articles"></div>
+    <div id="post-status" class="text-center text-muted" style="padding: 20px;">
+    </div>
 </div>
 <div class="categories col-lg-3 d-none d-lg-block">
     <ul>
@@ -78,5 +68,164 @@
     $("#articleType").on("change", function () {
         $("#search").click()
     })
+
+    let cursor = null;
+    let loading = false;
+    let hasMore = true;
+    const loadedArticleIds = new Set();
+
+    async function loadPosts() {
+        if (loading || !hasMore) return;
+
+        const userMatch = window.location.pathname.match(/\/user\/(\d+)\/article\/?$/);
+        if (!userMatch) {
+            console.error("Could not get user id from URL");
+            return;
+        }
+
+        loading = true;
+        showLoading();
+
+        try {
+            const apiParams = new URLSearchParams();
+            apiParams.set("id", userMatch[1]);
+
+            // Keep the current page filters when calling the API.
+            for (const name of ["key", "type", "category"]) {
+                const value = searchParams.get(name);
+                if (value !== null && value !== "") {
+                    apiParams.set(name, value);
+                }
+            }
+
+            if (cursor !== null) {
+                apiParams.set("cursor", cursor);
+            }
+
+            const response = await fetch(`/api/articles?${apiParams.toString()}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error ${response.status}`);
+            }
+
+            const result = await response.json();
+            const data = result.data ?? result;
+            const articles = data.Articles ?? data.articles ?? [];
+
+            appendPosts(articles);
+
+            // goweb/Go may serialize exported fields as PascalCase unless JSON tags are used.
+            const apiHasMore = data.HasMore ?? data.hasMore;
+            hasMore = apiHasMore ?? (articles.length > 0);
+
+            const apiNextCursor = data.NextCursor ?? data.nextCursor;
+            if (apiNextCursor !== undefined && apiNextCursor !== null) {
+                cursor = apiNextCursor;
+            } else if (articles.length > 0) {
+                // ID-only cursor fallback: use the last article returned.
+                cursor = articles[articles.length - 1].Id ?? articles[articles.length - 1].id;
+            } else {
+                hasMore = false;
+            }
+            if (!hasMore) {
+                showNoMore();
+            } else {
+                hideStatus();
+            }
+        } catch (err) {
+            console.error("Failed to load articles:", err);
+        } finally {
+            loading = false;
+        }
+    }
+
+    function appendPosts(articles) {
+        const container = document.getElementById("articles");
+
+        for (const article of articles) {
+            const articleId = article.Id ?? article.id;
+            const userMatch = window.location.pathname.match(/\/user\/(\d+)\/article\/?$/);
+            const userId = userMatch[1];
+
+
+            // Protect against duplicate items at pagination boundaries.
+            if (articleId !== undefined && loadedArticleIds.has(articleId)) {
+                continue;
+            }
+            if (articleId !== undefined) {
+                loadedArticleIds.add(articleId);
+            }
+
+            const a = document.createElement("a");
+            a.href = `/u/${userId}/post/${articleId}`;
+            a.target = "_blank";
+            a.className = "list-group-item list-group-item-action";
+
+            const header = document.createElement("div");
+            header.style.display = "flex";
+            header.style.justifyContent = "space-between";
+
+            const title = document.createElement("div");
+            title.className = "mb-1";
+            title.style.overflow = "hidden";
+            title.style.marginRight = "20px";
+            title.textContent = article.Title ?? article.title ?? "";
+
+            const info = document.createElement("div");
+
+            const category = document.createElement("span");
+            category.style.fontSize = "14px";
+            category.textContent = article.CategoryName ?? article.categoryName ?? "";
+
+            const time = document.createElement("span");
+            time.style.fontSize = "14px";
+            time.textContent = article.FormatTime ?? article.formatTime ?? article.InsertTime ?? article.insertTime ?? "";
+            time.className = "ml-1"
+
+            const expire = document.createElement("span");
+            expire.style.fontSize = "14px";
+            expire.textContent = article.ExpireTime ?? article.expireTime ?? "";
+            expire.className = "ml-1"
+
+            info.append(category, time, expire);
+            header.append(title, info);
+
+            const summary = document.createElement("p");
+            summary.className = "mb-1";
+            summary.style.overflow = "hidden";
+            summary.textContent = article.Summary ?? article.summary ?? "";
+
+            a.append(header, summary);
+            container.appendChild(a);
+        }
+    }
+
+    // Load the first batch when the page opens.
+    loadPosts();
+
+    // Load the next batch when the user reaches 80% of the page.
+    window.addEventListener("scroll", function () {
+        const scrollPosition = window.scrollY + window.innerHeight;
+        const pageHeight = document.documentElement.scrollHeight;
+
+        if (scrollPosition >= pageHeight * 0.8) {
+            loadPosts();
+        }
+    }, { passive: true });
+
+    function showLoading() {
+        document.getElementById("post-status").innerHTML = `
+        <div class="spinner-border spinner-border-sm" role="status"></div>
+        <span class="ml-2">Loading posts...</span>
+    `;
+    }
+
+    function showNoMore() {
+        document.getElementById("post-status").textContent =
+            "No more posts.";
+    }
+
+    function hideStatus() {
+        document.getElementById("post-status").innerHTML = "";
+    }
 </script>
 {{end}}

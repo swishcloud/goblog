@@ -53,6 +53,7 @@ const (
 	PATH_FriendlyLinkApplyList   = "/friendly-link-apply-list"
 	PATH_FriendlyLinkApplyActive = "/friendly_link_apply_active"
 	PATH_WEBSOCKET               = "/ws"
+	API_PATH_ARTICLELIST         = "/api/articles"
 )
 
 func (s *GoBlogServer) BindHandlers() {
@@ -162,6 +163,7 @@ func (s *GoBlogServer) BindHandlers() {
 		http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))).ServeHTTP(context.Writer, context.Request)
 	})
 	group.GET(PATH_ARTICLELIST, s.ArticleList())
+	public_api := group.Group()
 	auth := group.Group()
 	auth.Use(s.AuthMiddleware())
 	auth.GET(PATH_ARTICLEEDIT, s.ArticleEdit())
@@ -186,6 +188,8 @@ func (s *GoBlogServer) BindHandlers() {
 	group.POST(PATH_FriendlyLinkApply, s.FriendlyLinkApplyPOST())
 	group.GET(PATH_FriendlyLinkApplyList, s.FriendlyLinkApplyList())
 	group.PUT(PATH_FriendlyLinkApplyActive, s.FriendlyLinkApplyActivePUT())
+
+	public_api.GET(API_PATH_ARTICLELIST, s.UserArticles())
 }
 
 type PageModel struct {
@@ -222,7 +226,6 @@ func (s *GoBlogServer) AuthMiddleware() goweb.HandlerFunc {
 const SessionName = "session"
 
 type UserArticleModel struct {
-	Articles   []models.ArticleDto
 	Categories []models.CategoryDto
 	UserId     int
 	LoggedUser *models.UserDto
@@ -309,10 +312,18 @@ func (checker GOBLOGArticlePermissionChecher) viewArticle(userId *int, articleId
 	}
 }
 
-func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
+func (s *GoBlogServer) UserArticles() goweb.HandlerFunc {
 	return func(ctx *goweb.Context) {
 		key := ctx.Request.Form.Get("key")
+
+		cursor, err := strconv.Atoi(ctx.Request.Form.Get("cursor"))
+		var cursorRef *int
+		if err == nil {
+			cursorRef = &cursor
+		}
+
 		loginUser, _ := s.GetLoginUser(ctx)
+
 		category, err := strconv.Atoi(ctx.Request.URL.Query().Get("category"))
 		var categoryId *int
 		if err != nil || category == -1 {
@@ -320,9 +331,7 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		} else {
 			categoryId = &category
 		}
-
-		re := regexp.MustCompile(`\d+`)
-		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
+		id, _ := strconv.Atoi(ctx.Request.Form.Get("id"))
 		user := s.GetStorage(ctx).GetUser(id)
 		var queryArticleType int
 		if loginUser != nil && loginUser.Id == user.Id {
@@ -346,7 +355,8 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 		} else {
 			queryArticleType = 1
 		}
-		articles := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", categoryId, s.config.PostKey, nil)
+		result := []UserArticleDTO{}
+		articles, hasMore := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", categoryId, s.config.PostKey, nil, cursorRef)
 		len := len(articles)
 		for index := 0; index < len; index++ {
 			item := articles[index]
@@ -373,11 +383,51 @@ func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
 				articles = append(articles[:index], articles[index+1:]...)
 				index--
 				len--
+			} else {
+				if insertTime, err := internal.FormatTime(ctx.Request, item.InsertTime, ""); err == nil {
+					result = append(result, UserArticleDTO{item.Id, item.Title, item.CategoryName, insertTime, item.ExpireTime, item.Summary})
+				} else {
+					panic(err)
+				}
 			}
+		}
+		ctx.Success(struct {
+			HasMore  bool
+			Articles []UserArticleDTO
+		}{hasMore, result})
+	}
+}
+func (s *GoBlogServer) UserArticle() goweb.HandlerFunc {
+	return func(ctx *goweb.Context) {
+		loginUser, _ := s.GetLoginUser(ctx)
+		re := regexp.MustCompile(`\d+`)
+		id, _ := strconv.Atoi(re.FindString(ctx.Request.URL.Path))
+		user := s.GetStorage(ctx).GetUser(id)
+		var queryArticleType int
+		if loginUser != nil && loginUser.Id == user.Id {
+			t, err := strconv.Atoi(ctx.Request.Form.Get("type"))
+			if err != nil {
+				queryArticleType = 0
+			}
+			if t == 0 {
+				queryArticleType = 0
+			} else if t == 1 {
+				queryArticleType = 1
+			} else if t == 2 {
+				queryArticleType = 2
+			} else if t == 3 {
+				queryArticleType = 5
+			} else if t == 4 {
+				queryArticleType = 3
+			} else {
+				panic("parameter error")
+			}
+		} else {
+			queryArticleType = 1
 		}
 		categories := []models.CategoryDto{{Id: -1, Name: "全部分类"}}
 		categories = append(categories, s.GetStorage(ctx).GetCategories(user.Id, queryArticleType)...)
-		model := UserArticleModel{Articles: articles, Categories: categories, UserId: user.Id, LoggedUser: loginUser}
+		model := UserArticleModel{Categories: categories, UserId: user.Id, LoggedUser: loginUser}
 		ctx.RenderPage(s.NewPageModel(ctx, user.UserName, model), "templates/layout.html", "templates/userLayout.html", "templates/userArticle.html")
 	}
 }
@@ -388,7 +438,7 @@ func (s *GoBlogServer) ArticleHistories() goweb.HandlerFunc {
 			panic(err)
 		}
 		user := s.MustGetLoginUser(ctx)
-		articles := s.GetStorage(ctx).GetArticles(4, user.Id, "", nil, s.config.PostKey, &id)
+		articles, _ := s.GetStorage(ctx).GetArticles(4, user.Id, "", nil, s.config.PostKey, &id, nil)
 		data := struct {
 			Articles []models.ArticleDto
 		}{
@@ -415,7 +465,7 @@ func (s *GoBlogServer) ArticleList() goweb.HandlerFunc {
 		} else {
 			key = ""
 		}
-		articles := s.GetStorage(ctx).GetArticles(1, 0, key, nil, s.config.PostKey, nil)
+		articles, _ := s.GetStorage(ctx).GetArticles(1, 0, key, nil, s.config.PostKey, nil, nil)
 		ctx.FuncMap["article_url"] = func(userid int, articleid int) (string, error) {
 			return "https://" + s.config.Website_domain + "/u/" + strconv.Itoa(userid) + "/post/" + strconv.Itoa(articleid), nil
 		}
