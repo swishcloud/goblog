@@ -303,12 +303,13 @@ func (hw *HandlerWidget) Post_Process(ctx *goweb.Context) {
 func (s *GoBlogServer) ErrorMiddleware(ctx *goweb.Context) {
 	defer func() {
 		if err := recover(); err != nil {
+			desc := fmt.Sprintf("%s", err)
 			if ctx.Request.Method == http.MethodPost {
-				ctx.Failed(ctx.Err.Error())
+				ctx.Failed(desc)
 			} else {
 				data := struct {
 					Desc string
-				}{Desc: fmt.Sprintf("%s", err)}
+				}{Desc: desc}
 				model := s.NewPageModel(ctx, "ERROR", data)
 				ctx.RenderPage(model, "templates/layout.html", "templates/error.html")
 			}

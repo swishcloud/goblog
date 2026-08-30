@@ -216,7 +216,6 @@ func (m *SQLManager) UpdateArticle(id int, title string, summary string, html st
 	SET category_id=$1, content=$2, html=$3, title=$4, type=$5,share_deadline_time=$6, update_time=$7, cover=$8, summary=$9
 	WHERE id=$10;`, categoryId, content, html, title, articleType, shareDeadlineTime, update_time, cover, summary, id)
 }
-
 func (m *SQLManager) GetUser(userId int) *models.UserDto {
 	r := m.Tx.QueryRow(`SELECT id, user_name, level2pwd, insert_time, update_time, is_banned, op_issuer, op_userid, avatar, email
 	FROM public."user" where id=$1`, userId)

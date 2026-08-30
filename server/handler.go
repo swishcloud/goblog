@@ -356,38 +356,46 @@ func (s *GoBlogServer) UserArticles() goweb.HandlerFunc {
 			queryArticleType = 1
 		}
 		result := []UserArticleDTO{}
-		articles, hasMore := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", categoryId, s.config.PostKey, nil, cursorRef)
-		len := len(articles)
-		for index := 0; index < len; index++ {
-			item := articles[index]
-			if item.ArticleType == 5 && item.ShareDeadlineTime != nil {
-				if seconds, err := checkShareDeadlineTime(*item.ShareDeadlineTime); err != nil {
-					panic(err)
-				} else {
-					if seconds < 0 {
-						if seconds < -60*60*24 { //days
-							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60/60/24) + " d"
-						} else if seconds < -60*60 { //hours
-							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60/60) + " h"
-						} else if seconds < -60 { //minute
-							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60) + " m"
-						} else {
-							articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds) + " s"
-						}
+		const limit = 20
+		hasMore := true
+		for len(result) < limit && hasMore {
+			articles, hm := s.GetStorage(ctx).GetArticles(queryArticleType, user.Id, "", categoryId, s.config.PostKey, nil, cursorRef)
+			hasMore = hm
+			if hasMore {
+				cursorRef = &articles[len(articles)-1].Id
+			}
+			length := len(articles)
+			for index := 0; index < length; index++ {
+				item := articles[index]
+				if item.ArticleType == 5 && item.ShareDeadlineTime != nil {
+					if seconds, err := checkShareDeadlineTime(*item.ShareDeadlineTime); err != nil {
+						panic(err)
 					} else {
-						articles[index].ExpireTime = "expired"
+						if seconds < 0 {
+							if seconds < -60*60*24 { //days
+								articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60/60/24) + " d"
+							} else if seconds < -60*60 { //hours
+								articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60/60) + " h"
+							} else if seconds < -60 { //minute
+								articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds/60) + " m"
+							} else {
+								articles[index].ExpireTime = "expire in " + strconv.Itoa(-seconds) + " s"
+							}
+						} else {
+							articles[index].ExpireTime = "expired"
+						}
 					}
 				}
-			}
-			if !strings.Contains(strings.ToUpper(item.Title), strings.ToUpper(key)) && !strings.Contains(strings.ToUpper(item.Content), strings.ToUpper(key)) {
-				articles = append(articles[:index], articles[index+1:]...)
-				index--
-				len--
-			} else {
-				if insertTime, err := internal.FormatTime(ctx.Request, item.InsertTime, ""); err == nil {
-					result = append(result, UserArticleDTO{item.Id, item.Title, item.CategoryName, insertTime, item.ExpireTime, item.Summary})
+				if !strings.Contains(strings.ToUpper(item.Title), strings.ToUpper(key)) && !strings.Contains(strings.ToUpper(item.Content), strings.ToUpper(key)) {
+					articles = append(articles[:index], articles[index+1:]...)
+					index--
+					length--
 				} else {
-					panic(err)
+					if insertTime, err := internal.FormatTime(ctx.Request, item.InsertTime, ""); err == nil {
+						result = append(result, UserArticleDTO{item.Id, item.Title, item.CategoryName, insertTime, item.ExpireTime, item.Summary})
+					} else {
+						panic(err)
+					}
 				}
 			}
 		}
