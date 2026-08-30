@@ -256,7 +256,7 @@ func (m *SQLManager) GetCategories(userId int, t int) []models.CategoryDto {
 	parameters := []interface{}{}
 	parameters = append(parameters, userId)
 	if t == 1 {
-		where = "where id in( select a.id from category as a join article as b on a.id=b.category_id  where b.type=1 and a.is_deleted=false and a.user_id=$1 and b.backup_article_id is null group by a.id ) order by id"
+		where = "where id in( select a.id from category as a join article as b on a.id=b.category_id  where b.type=1 and a.is_deleted=false and a.user_id=$1 and b.is_deleted=false and b.backup_article_id is null group by a.id ) order by id"
 
 	} else {
 		where = "where is_deleted=false and user_id=$1 order by id"
