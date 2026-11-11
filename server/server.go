@@ -255,7 +255,7 @@ func readConfig(filePath string) *Config {
 	c.OAUTH2Config = &oauth2.Config{
 		ClientID:     c.OAuthClientId,
 		ClientSecret: c.OAuthSecret,
-		Scopes:       []string{"offline", "openid", "profile"},
+		Scopes:       []string{"offline", "openid", "profile", "email"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  c.OAuthAuthUrl,
 			TokenURL: c.OAuthTokenUrl,
